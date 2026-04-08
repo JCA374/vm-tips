@@ -45,7 +45,7 @@ def deadlines():
 
     if request.method == 'POST':
         # Update deadlines
-        rounds = ['round_of_16', 'quarter_final', 'semi_final', 'final']
+        rounds = ['group_md1', 'group_md2', 'group_md3', 'round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'final']
 
         for round_name in rounds:
             deadline_str = request.form.get(round_name)

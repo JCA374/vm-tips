@@ -1,6 +1,6 @@
 """Authentication service - Magic link generation and verification"""
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask_mail import Message
 from flask import current_app
 from database.models import User, MagicLink, SessionLocal
@@ -32,14 +32,13 @@ def send_magic_link(email):
             db.add(user)
             db.flush()  # Get user.id
 
-        # Generate magic link token
+        # Generate magic link token (no expiry)
         token = generate_token()
-        expires_at = datetime.utcnow() + timedelta(minutes=settings.MAGIC_LINK_EXPIRY_MINUTES)
 
         magic_link = MagicLink(
             user_id=user.id,
             token=token,
-            expires_at=expires_at
+            expires_at=datetime(9999, 12, 31)  # effectively never expires
         )
         db.add(magic_link)
         db.commit()
@@ -58,7 +57,7 @@ def send_magic_link(email):
 
 def _send_email(email, token):
     """Send magic link email using Flask-Mail"""
-    from app import mail
+    mail = current_app.extensions['mail']
 
     link = f"{settings.APP_URL}/auth/verify?token={token}"
 
@@ -109,28 +108,30 @@ VM Tips Team
 def verify_magic_link(token):
     """
     Verify magic link token
-    Returns user if valid, None if invalid/expired
+    Returns dict with user data if valid, None if invalid/already used
     """
     db = SessionLocal()
 
     try:
-        # Find magic link
         magic_link = db.query(MagicLink).filter_by(token=token, used=False).first()
 
         if not magic_link:
-            return None
-
-        # Check if expired
-        if datetime.utcnow() > magic_link.expires_at:
             return None
 
         # Mark as used
         magic_link.used = True
         db.commit()
 
-        # Return user
         user = db.query(User).filter_by(id=magic_link.user_id).first()
-        return user
+        if not user:
+            return None
+
+        # Return plain dict — avoids DetachedInstanceError after session closes
+        return {
+            'id': user.id,
+            'email': user.email,
+            'is_admin': user.is_admin,
+        }
 
     except Exception as e:
         print(f"Error verifying magic link: {e}")

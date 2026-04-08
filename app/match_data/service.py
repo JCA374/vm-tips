@@ -15,17 +15,15 @@ class FootballAPIClient:
             'X-Auth-Token': self.api_key
         }
 
-    def get_competition_matches(self, competition_id, stage='KNOCKOUT'):
+    def get_competition_matches(self, competition_id):
         """
-        Get matches for a specific competition
+        Get all matches for a specific competition
         competition_id: e.g., 2000 for World Cup
-        stage: KNOCKOUT for knockout rounds
         """
         url = f'{self.base_url}/competitions/{competition_id}/matches'
-        params = {'stage': stage}
 
         try:
-            response = requests.get(url, headers=self.headers, params=params, timeout=10)
+            response = requests.get(url, headers=self.headers, timeout=10)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
@@ -45,15 +43,20 @@ class FootballAPIClient:
             return None
 
 
-def map_stage_to_round(stage_name):
-    """Map API stage name to our round names"""
+KNOCKOUT_STAGES = {'LAST_32', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'FINAL'}
+
+def map_stage_to_round(stage_name, matchday=None):
+    """Map API stage name (+ matchday) to our round names"""
+    if stage_name == 'GROUP_STAGE' and matchday:
+        return f'group_md{matchday}'
     mapping = {
-        'ROUND_OF_16': 'round_of_16',
+        'LAST_32': 'round_of_32',
+        'LAST_16': 'round_of_16',
         'QUARTER_FINALS': 'quarter_final',
         'SEMI_FINALS': 'semi_final',
-        'FINAL': 'final'
+        'FINAL': 'final',
     }
-    return mapping.get(stage_name, stage_name.lower())
+    return mapping.get(stage_name)
 
 
 def sync_matches(competition_id=2000):
@@ -73,29 +76,30 @@ def sync_matches(competition_id=2000):
 
     try:
         for match_data in data['matches']:
-            # Extract match info
-            external_id = match_data['id']
             stage = match_data.get('stage', '')
-            round_name = map_stage_to_round(stage)
+            matchday = match_data.get('matchday')
 
-            home_team = match_data['homeTeam']['name']
-            away_team = match_data['awayTeam']['name']
+            round_name = map_stage_to_round(stage, matchday)
+            if not round_name:
+                continue
+
+            external_id = match_data['id']
+            home_team = match_data['homeTeam']['name'] or 'TBD'
+            away_team = match_data['awayTeam']['name'] or 'TBD'
+            group = match_data.get('group') or ''
             match_date = datetime.fromisoformat(match_data['utcDate'].replace('Z', '+00:00'))
 
-            # Check if match finished
             status = match_data['status']
             finished = status in ['FINISHED', 'AWARDED']
-
             home_goals = match_data['score']['fullTime']['home'] if finished else None
             away_goals = match_data['score']['fullTime']['away'] if finished else None
 
-            # Check if match exists
             existing = db.query(Match).filter_by(external_id=external_id).first()
 
             if existing:
-                # Update existing match
                 existing.home_team = home_team
                 existing.away_team = away_team
+                existing.group = group
                 existing.match_date = match_date
                 existing.home_goals = home_goals
                 existing.away_goals = away_goals
@@ -103,18 +107,17 @@ def sync_matches(competition_id=2000):
                 existing.updated_at = datetime.utcnow()
                 updated += 1
             else:
-                # Create new match
-                new_match = Match(
+                db.add(Match(
                     external_id=external_id,
                     round=round_name,
+                    group=group,
                     home_team=home_team,
                     away_team=away_team,
                     match_date=match_date,
                     home_goals=home_goals,
                     away_goals=away_goals,
-                    finished=finished
-                )
-                db.add(new_match)
+                    finished=finished,
+                ))
                 synced += 1
 
         db.commit()

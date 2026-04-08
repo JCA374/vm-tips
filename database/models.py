@@ -52,7 +52,8 @@ class Match(Base):
 
     id = Column(Integer, primary_key=True)
     external_id = Column(Integer, unique=True, index=True)  # ID from football API
-    round = Column(String(50), nullable=False)  # 'round_of_16', 'quarter_final', 'semi_final', 'final'
+    round = Column(String(50), nullable=False)
+    group = Column(String(20), nullable=True)   # e.g. 'GROUP_A' — group stage only
     home_team = Column(String(100), nullable=False)
     away_team = Column(String(100), nullable=False)
     match_date = Column(DateTime, nullable=False)

@@ -4,10 +4,20 @@ from app.prediction.service import (
     get_leaderboard, submit_prediction, get_user_predictions,
     get_all_predictions_for_round, check_deadline_passed
 )
-from app.match_data.service import get_upcoming_matches
-from database.models import SessionLocal, RoundDeadline
+from database.models import SessionLocal, RoundDeadline, Match
 
 prediction_bp = Blueprint('prediction', __name__)
+
+ROUNDS = [
+    ('group_md1',   'Groups — Matchday 1'),
+    ('group_md2',   'Groups — Matchday 2'),
+    ('group_md3',   'Groups — Matchday 3'),
+    ('round_of_32', 'Round of 32'),
+    ('round_of_16', 'Round of 16'),
+    ('quarter_final', 'Quarter Finals'),
+    ('semi_final',  'Semi Finals'),
+    ('final',       'Final'),
+]
 
 
 @prediction_bp.route('/leaderboard')
@@ -19,49 +29,56 @@ def leaderboard():
 
 @prediction_bp.route('/predict', methods=['GET', 'POST'])
 def predict():
-    """Prediction form for current round"""
+    """Prediction form — all rounds grouped"""
     if not session.get('user_id'):
         flash('Please login first.')
         return redirect(url_for('auth.login'))
 
-    # Get current round - for now, show all upcoming matches
-    matches = get_upcoming_matches()
+    db = SessionLocal()
+    all_matches = db.query(Match).order_by(Match.match_date).all()
+    deadlines = {d.round: d for d in db.query(RoundDeadline).all()}
+    db.close()
 
     if request.method == 'POST':
         user_id = session['user_id']
-
-        # Process each match prediction
-        for match in matches:
+        for match in all_matches:
             home_key = f'home_{match.id}'
             away_key = f'away_{match.id}'
-
             if home_key in request.form and away_key in request.form:
-                home_goals = int(request.form[home_key])
-                away_goals = int(request.form[away_key])
-
-                result = submit_prediction(user_id, match.id, home_goals, away_goals)
-                if result['status'] == 'error':
-                    flash(f"Error for {match.home_team} vs {match.away_team}: {result['message']}")
-
+                try:
+                    home_goals = int(request.form[home_key])
+                    away_goals = int(request.form[away_key])
+                    result = submit_prediction(user_id, match.id, home_goals, away_goals)
+                    if result['status'] == 'error':
+                        flash(f"{match.home_team} vs {match.away_team}: {result['message']}", 'error')
+                except ValueError:
+                    pass
         flash('Predictions saved!')
         return redirect(url_for('prediction.predict'))
 
-    # Get user's existing predictions
     user_id = session['user_id']
     user_preds = get_user_predictions(user_id)
     predictions_dict = {p.match_id: p for p in user_preds}
 
-    # Get deadline for first match (simplified - could be per round)
-    deadline = None
-    if matches:
-        db = SessionLocal()
-        deadline = db.query(RoundDeadline).filter_by(round=matches[0].round).first()
-        db.close()
+    # Group matches by round
+    rounds_data = []
+    for round_key, round_label in ROUNDS:
+        round_matches = [m for m in all_matches if m.round == round_key]
+        # For group stage: sort by group then date so group headers render correctly
+        if round_key.startswith('group_'):
+            round_matches.sort(key=lambda m: (m.group or '', m.match_date))
+        deadline = deadlines.get(round_key)
+        rounds_data.append({
+            'key': round_key,
+            'label': round_label,
+            'matches': round_matches,
+            'deadline': deadline,
+            'locked': deadline.is_past() if deadline else False,
+        })
 
     return render_template('prediction/predict.html',
-                          matches=matches,
-                          predictions=predictions_dict,
-                          deadline=deadline)
+                           rounds_data=rounds_data,
+                           predictions=predictions_dict)
 
 
 @prediction_bp.route('/results')

@@ -1,47 +1,212 @@
 {% extends "base.html" %}
 
-{% block title %}Make Predictions - VM Tips{% endblock %}
+{% block title %}Make Your Predictions - VM Tips{% endblock %}
+
+{% block extra_css %}
+<style>
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 0;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    padding: 10px 18px;
+    border: 2px solid #ddd;
+    border-bottom: none;
+    background: #f4f4f4;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    font-size: 14px;
+    font-weight: bold;
+    color: #555;
+    transition: background 0.15s;
+}
+.tab-btn:hover { background: #e8e8e8; }
+.tab-btn.active {
+    background: white;
+    border-color: #4CAF50;
+    color: #2c3e50;
+}
+.tab-btn.locked { color: #c0392b; }
+.tab-panel {
+    display: none;
+    background: white;
+    border: 2px solid #4CAF50;
+    border-radius: 0 6px 6px 6px;
+    padding: 24px;
+}
+.tab-panel.active { display: block; }
+
+.deadline-badge {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+.deadline-badge.open   { background: #eafbea; color: #27ae60; border: 1px solid #a9dfb6; }
+.deadline-badge.locked { background: #fdecea; color: #c0392b; border: 1px solid #f5c6cb; }
+.deadline-badge.no-deadline { background: #f8f9fa; color: #888; border: 1px solid #ddd; }
+
+.match-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.match-row:last-child { border-bottom: none; }
+.team-name {
+    flex: 1;
+    font-size: 15px;
+}
+.team-name.home { text-align: right; }
+.team-name.tbd  { color: #bbb; font-style: italic; }
+.score-input {
+    width: 56px;
+    text-align: center;
+    padding: 7px 4px;
+    font-size: 1.1em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.score-input:disabled { background: #f8f8f8; color: #aaa; }
+.separator { font-weight: bold; color: #999; font-size: 1.1em; }
+.match-status {
+    font-size: 12px;
+    white-space: nowrap;
+    min-width: 70px;
+    text-align: right;
+}
+.match-status.saved   { color: #27ae60; }
+.match-status.result  { color: #2980b9; }
+.match-status.tbd     { color: #bbb; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2>Make Your Predictions</h2>
+<div class="card" style="padding-bottom: 8px;">
+    <h2 style="margin-bottom: 20px;">Make Your Predictions</h2>
 
-    {% if deadline %}
-    <p><strong>Deadline:</strong> {{ deadline.deadline.strftime('%Y-%m-%d %H:%M UTC') }}</p>
-    {% if deadline.is_past() %}
-    <p style="color: red;">Deadline has passed! Predictions are locked for this round.</p>
-    {% endif %}
-    {% endif %}
-
-    {% if matches %}
-    <form method="POST">
-        {% for match in matches %}
-        <div class="form-group" style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 4px;">
-            <h3>{{ match.home_team }} vs {{ match.away_team }}</h3>
-            <p>{{ match.match_date.strftime('%Y-%m-%d %H:%M UTC') }}</p>
-
-            {% set pred = predictions.get(match.id) %}
-
-            <label>{{ match.home_team }} Goals:</label>
-            <input type="number" name="home_{{ match.id }}" min="0" max="20"
-                   value="{{ pred.predicted_home_goals if pred else 0 }}"
-                   {% if deadline and deadline.is_past() %}disabled{% endif %}
-                   required>
-
-            <label>{{ match.away_team }} Goals:</label>
-            <input type="number" name="away_{{ match.id }}" min="0" max="20"
-                   value="{{ pred.predicted_away_goals if pred else 0 }}"
-                   {% if deadline and deadline.is_past() %}disabled{% endif %}
-                   required>
-        </div>
+    <div class="tabs">
+        {% for round in rounds_data %}
+        <button class="tab-btn {% if loop.first %}active{% endif %} {% if round.locked %}locked{% endif %}"
+                data-tab="tab-{{ round.key }}"
+                type="button">
+            {{ round.label }}
+        </button>
         {% endfor %}
+    </div>
 
-        {% if not (deadline and deadline.is_past()) %}
-        <button type="submit" class="btn">Save Predictions</button>
+    <form method="POST">
+    {% for round in rounds_data %}
+    <div id="tab-{{ round.key }}" class="tab-panel {% if loop.first %}active{% endif %}">
+
+        {% if round.deadline %}
+            {% if round.locked %}
+            <span class="deadline-badge locked">
+                Locked — deadline:
+                <span class="local-time" data-utc="{{ round.deadline.deadline.strftime('%Y-%m-%dT%H:%M:00Z') }}">
+                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }} UTC
+                </span>
+            </span>
+            {% else %}
+            <span class="deadline-badge open">
+                Deadline:
+                <span class="local-time" data-utc="{{ round.deadline.deadline.strftime('%Y-%m-%dT%H:%M:00Z') }}">
+                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }} UTC
+                </span>
+            </span>
+            {% endif %}
+        {% else %}
+        <span class="deadline-badge no-deadline">No deadline set yet</span>
         {% endif %}
+
+        {% if round.matches %}
+        <div style="margin-top: 8px;">
+            {% set ns = namespace(last_group='') %}
+            {% for match in round.matches %}
+            {% set pred = predictions.get(match.id) %}
+            {% set is_tbd = match.home_team == 'TBD' %}
+
+            {% if match.group and match.group != ns.last_group %}
+            {% set ns.last_group = match.group %}
+            <div style="margin: 14px 0 4px; font-size: 12px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 0.05em;">
+                {{ match.group.replace('GROUP_', 'Group ') }}
+            </div>
+            {% endif %}
+
+            <div class="match-row">
+                <span class="team-name home {% if is_tbd %}tbd{% endif %}">{{ match.home_team }}</span>
+
+                <input class="score-input" type="number" name="home_{{ match.id }}"
+                       min="0" max="20"
+                       value="{{ pred.predicted_home_goals if pred else '' }}"
+                       placeholder="0"
+                       {% if round.locked or match.finished or is_tbd %}disabled{% endif %}>
+
+                <span class="separator">–</span>
+
+                <input class="score-input" type="number" name="away_{{ match.id }}"
+                       min="0" max="20"
+                       value="{{ pred.predicted_away_goals if pred else '' }}"
+                       placeholder="0"
+                       {% if round.locked or match.finished or is_tbd %}disabled{% endif %}>
+
+                <span class="team-name {% if is_tbd %}tbd{% endif %}">{{ match.away_team }}</span>
+
+                {% if match.finished %}
+                <span class="match-status result">
+                    {{ match.home_goals }}–{{ match.away_goals }}
+                    {% if pred and pred.points is not none %}({{ pred.points }}p){% endif %}
+                </span>
+                {% elif is_tbd %}
+                <span class="match-status tbd">TBD</span>
+                {% elif pred %}
+                <span class="match-status saved">&#10003; Saved</span>
+                {% else %}
+                <span class="match-status"></span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#aaa; font-style:italic; margin-top:12px;">No matches scheduled yet</p>
+        {% endif %}
+
+        {% if not round.locked %}
+        <button type="submit" class="btn" style="margin-top: 20px;">Save Predictions</button>
+        {% endif %}
+    </div>
+    {% endfor %}
     </form>
-    {% else %}
-    <p>No upcoming matches available. Check back later!</p>
-    {% endif %}
 </div>
+
+<script>
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+});
+
+// Local time conversion (fallback: Stockholm)
+(function() {
+    var tz = 'Europe/Stockholm';
+    try { var d = Intl.DateTimeFormat().resolvedOptions().timeZone; if (d) tz = d; } catch(e) {}
+    var fmt = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: tz,
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+        timeZoneName: 'short'
+    });
+    document.querySelectorAll('.local-time').forEach(function(el) {
+        try { el.textContent = fmt.format(new Date(el.dataset.utc)); } catch(e) {}
+    });
+})();
+</script>
 {% endblock %}

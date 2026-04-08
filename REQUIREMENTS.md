@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A web application for family members to bet on World Cup knockout round outcomes. Users submit predictions for each round, view a leaderboard, and see what others predicted after each deadline.
+A web application for family members to bet on World Cup groop staga and knockout round outcomes. Users submit predictions for each round, view a leaderboard, and see what others predicted after each deadline.
 
 ## Core Requirements
 

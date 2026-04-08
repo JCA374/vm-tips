@@ -8,25 +8,31 @@
 
     <form method="POST">
         <div class="form-group">
-            <label for="round_of_16">Round of 16:</label>
+            <label for="round_of_32">Round 1 — Round of 32 (28 Jun):</label>
+            <input type="datetime-local" id="round_of_32" name="round_of_32"
+                   value="{{ deadlines.get('round_of_32', '') }}">
+        </div>
+
+        <div class="form-group">
+            <label for="round_of_16">Round 2 — Round of 16 (4 Jul):</label>
             <input type="datetime-local" id="round_of_16" name="round_of_16"
                    value="{{ deadlines.get('round_of_16', '') }}">
         </div>
 
         <div class="form-group">
-            <label for="quarter_final">Quarter Final:</label>
+            <label for="quarter_final">Round 3 — Quarter Finals (9 Jul):</label>
             <input type="datetime-local" id="quarter_final" name="quarter_final"
                    value="{{ deadlines.get('quarter_final', '') }}">
         </div>
 
         <div class="form-group">
-            <label for="semi_final">Semi Final:</label>
+            <label for="semi_final">Semi Finals (14 Jul):</label>
             <input type="datetime-local" id="semi_final" name="semi_final"
                    value="{{ deadlines.get('semi_final', '') }}">
         </div>
 
         <div class="form-group">
-            <label for="final">Final:</label>
+            <label for="final">Final (19 Jul):</label>
             <input type="datetime-local" id="final" name="final"
                    value="{{ deadlines.get('final', '') }}">
         </div>

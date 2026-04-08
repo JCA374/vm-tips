@@ -1,0 +1,33 @@
+This is a **fish shell compatibility issue**. Claude Code's installer spits out a bash-style `source` command, but fish shell's `source` works differently — it doesn't accept arguments passed that way.
+
+**What's happening:**
+
+The installer tells you to run something like:
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.config/fish/config.fish && source ~/.config/fish/config.fish
+```
+
+This is incorrect for fish shell — two problems:
+1. `export PATH=...` is bash syntax, fish doesn't use it
+2. `source` in fish doesn't accept chained arguments like that
+
+**The fix — run this in fish instead:**
+
+```fish
+fish_add_path ~/.local/bin
+```
+
+That's it. `fish_add_path` is the proper fish-native way to permanently add a directory to your PATH. No need to touch `config.fish` manually or `source` anything.
+
+Then verify it works:
+```fish
+claude --version
+```
+
+**If you also want to reload config manually in future**, fish uses:
+```fish
+source ~/.config/fish/config.fish
+```
+(standalone, no `&&` chaining with it)
+
+This is a known open bug on the Claude Code GitHub — the installer doesn't generate fish-appropriate instructions yet. The `fish_add_path` workaround above is the clean solution.

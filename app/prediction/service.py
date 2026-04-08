@@ -74,9 +74,15 @@ def get_user_predictions(user_id, round_name=None):
 
 def get_match_predictions(match_id):
     """Get all predictions for a specific match"""
+    from sqlalchemy.orm import joinedload
     db = SessionLocal()
     try:
-        return db.query(Prediction).filter_by(match_id=match_id).all()
+        return (
+            db.query(Prediction)
+            .options(joinedload(Prediction.user))
+            .filter_by(match_id=match_id)
+            .all()
+        )
     finally:
         db.close()
 

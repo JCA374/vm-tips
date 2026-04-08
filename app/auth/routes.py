@@ -25,9 +25,9 @@ def verify():
     user = verify_magic_link(token)
 
     if user:
-        session['user_id'] = user.id
-        session['user_email'] = user.email
-        session['is_admin'] = user.is_admin
+        session['user_id'] = user['id']
+        session['user_email'] = user['email']
+        session['is_admin'] = user['is_admin']
         flash('Login successful!')
         return redirect(url_for('index'))
     else:
