@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - VM Tips{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>User Management</h2>
+
+    {% if users %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Admin</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.name }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ 'Yes' if user.is_admin else 'No' }}</td>
+                <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No users yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

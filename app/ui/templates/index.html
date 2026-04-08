@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Home - VM Tips{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Welcome to VM Tips!</h2>
+    <p>Predict World Cup knockout round scores and compete with your family.</p>
+
+    {% if session.get('user_id') %}
+        <p>Welcome back, {{ session.get('user_email') }}!</p>
+        <p>
+            <a href="/predict" class="btn">Make Predictions</a>
+            <a href="/leaderboard" class="btn btn-secondary">View Leaderboard</a>
+        </p>
+    {% else %}
+        <p>
+            <a href="/login" class="btn">Login</a>
+            <a href="/register" class="btn btn-secondary">Register</a>
+        </p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>How it works</h3>
+    <ol>
+        <li>Predict the exact score for each knockout round match</li>
+        <li>Update your predictions before each round's deadline</li>
+        <li>Earn points for:
+            <ul>
+                <li>Correct outcome (win/draw/loss): 3 points</li>
+                <li>Correct home team goals: 2 points</li>
+                <li>Correct away team goals: 2 points</li>
+            </ul>
+        </li>
+        <li>Compete on the leaderboard!</li>
+    </ol>
+</div>
+{% endblock %}

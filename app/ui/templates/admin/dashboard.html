@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - VM Tips{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Admin Dashboard</h2>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 2rem 0;">
+        <div style="background: #3498db; color: white; padding: 2rem; border-radius: 8px;">
+            <h3>Users</h3>
+            <p><a href="/admin/users" style="color: white; text-decoration: underline;">Manage Users</a></p>
+        </div>
+
+        <div style="background: #e74c3c; color: white; padding: 2rem; border-radius: 8px;">
+            <h3>Deadlines</h3>
+            <p><a href="/admin/deadlines" style="color: white; text-decoration: underline;">Set Deadlines</a></p>
+        </div>
+
+        <div style="background: #2ecc71; color: white; padding: 2rem; border-radius: 8px;">
+            <h3>System</h3>
+            <p><a href="/admin/status" style="color: white; text-decoration: underline;">Sync Status</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

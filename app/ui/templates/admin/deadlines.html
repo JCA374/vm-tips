@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Deadlines - VM Tips{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Manage Round Deadlines</h2>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="round_of_16">Round of 16:</label>
+            <input type="datetime-local" id="round_of_16" name="round_of_16"
+                   value="{{ deadlines.get('round_of_16', '') }}">
+        </div>
+
+        <div class="form-group">
+            <label for="quarter_final">Quarter Final:</label>
+            <input type="datetime-local" id="quarter_final" name="quarter_final"
+                   value="{{ deadlines.get('quarter_final', '') }}">
+        </div>
+
+        <div class="form-group">
+            <label for="semi_final">Semi Final:</label>
+            <input type="datetime-local" id="semi_final" name="semi_final"
+                   value="{{ deadlines.get('semi_final', '') }}">
+        </div>
+
+        <div class="form-group">
+            <label for="final">Final:</label>
+            <input type="datetime-local" id="final" name="final"
+                   value="{{ deadlines.get('final', '') }}">
+        </div>
+
+        <button type="submit" class="btn">Update Deadlines</button>
+    </form>
+</div>
+
+{% if existing_deadlines %}
+<div class="card">
+    <h3>Current Deadlines</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Round</th>
+                <th>Deadline</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for deadline in existing_deadlines %}
+            <tr>
+                <td>{{ deadline.round.replace('_', ' ').title() }}</td>
+                <td>{{ deadline.deadline.strftime('%Y-%m-%d %H:%M UTC') }}</td>
+                <td>{{ 'Passed' if deadline.is_past() else 'Active' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

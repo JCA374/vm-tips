@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}System Status - VM Tips{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>System Status</h2>
+
+    <h3>Match Data Sync</h3>
+    <p>Manually sync match data from the football API.</p>
+
+    <form method="POST" action="/admin/sync-matches">
+        <button type="submit" class="btn">Sync Matches Now</button>
+    </form>
+
+    {% if sync_result %}
+    <div style="margin-top: 1rem; padding: 1rem; background: #d4edda; border-radius: 4px;">
+        <strong>Last Sync Result:</strong>
+        <p>Status: {{ sync_result.status }}</p>
+        {% if sync_result.synced %}
+        <p>New matches: {{ sync_result.synced }}</p>
+        <p>Updated matches: {{ sync_result.updated }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>Database Statistics</h3>
+    <table>
+        <tr>
+            <th>Total Users</th>
+            <td>{{ stats.users or 0 }}</td>
+        </tr>
+        <tr>
+            <th>Total Matches</th>
+            <td>{{ stats.matches or 0 }}</td>
+        </tr>
+        <tr>
+            <th>Total Predictions</th>
+            <td>{{ stats.predictions or 0 }}</td>
+        </tr>
+    </table>
+</div>
+
+<div class="card">
+    <h3>Calculate Scores</h3>
+    <p>Recalculate all prediction scores based on match results.</p>
+
+    <form method="POST" action="/admin/calculate-scores">
+        <button type="submit" class="btn">Calculate Scores Now</button>
+    </form>
+</div>
+{% endblock %}

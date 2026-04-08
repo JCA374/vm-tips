@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Results - VM Tips{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Everyone's Predictions</h2>
+    <p>See what everyone predicted (shown after deadline).</p>
+
+    {% if predictions_by_match %}
+        {% for match_id, data in predictions_by_match.items() %}
+        <div style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 4px;">
+            <h3>{{ data.match.home_team }} vs {{ data.match.away_team }}</h3>
+            <p>Date: {{ data.match.match_date.strftime('%Y-%m-%d %H:%M UTC') }}</p>
+
+            {% if data.match.finished %}
+            <p><strong>Final Score: {{ data.match.home_goals }} - {{ data.match.away_goals }}</strong></p>
+            {% else %}
+            <p><em>Match not yet played</em></p>
+            {% endif %}
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Prediction</th>
+                        {% if data.match.finished %}
+                        <th>Points</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pred in data.predictions %}
+                    <tr>
+                        <td>{{ pred.user.name }}</td>
+                        <td>{{ pred.predicted_home }} - {{ pred.predicted_away }}</td>
+                        {% if data.match.finished %}
+                        <td><strong>{{ pred.points or 0 }}</strong></td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    {% else %}
+    <p>No predictions to show yet, or deadline hasn't passed.</p>
+    {% endif %}
+</div>
+{% endblock %}

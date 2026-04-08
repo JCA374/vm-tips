@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Leaderboard - VM Tips{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Leaderboard</h2>
+
+    {% if leaderboard %}
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th>Total Points</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in leaderboard %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ entry.name }}</td>
+                <td><strong>{{ entry.total_points }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No scores yet. Start making predictions!</p>
+    {% endif %}
+</div>
+{% endblock %}

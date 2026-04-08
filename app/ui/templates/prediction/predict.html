@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Make Predictions - VM Tips{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Make Your Predictions</h2>
+
+    {% if deadline %}
+    <p><strong>Deadline:</strong> {{ deadline.deadline.strftime('%Y-%m-%d %H:%M UTC') }}</p>
+    {% if deadline.is_past() %}
+    <p style="color: red;">Deadline has passed! Predictions are locked for this round.</p>
+    {% endif %}
+    {% endif %}
+
+    {% if matches %}
+    <form method="POST">
+        {% for match in matches %}
+        <div class="form-group" style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 4px;">
+            <h3>{{ match.home_team }} vs {{ match.away_team }}</h3>
+            <p>{{ match.match_date.strftime('%Y-%m-%d %H:%M UTC') }}</p>
+
+            {% set pred = predictions.get(match.id) %}
+
+            <label>{{ match.home_team }} Goals:</label>
+            <input type="number" name="home_{{ match.id }}" min="0" max="20"
+                   value="{{ pred.predicted_home_goals if pred else 0 }}"
+                   {% if deadline and deadline.is_past() %}disabled{% endif %}
+                   required>
+
+            <label>{{ match.away_team }} Goals:</label>
+            <input type="number" name="away_{{ match.id }}" min="0" max="20"
+                   value="{{ pred.predicted_away_goals if pred else 0 }}"
+                   {% if deadline and deadline.is_past() %}disabled{% endif %}
+                   required>
+        </div>
+        {% endfor %}
+
+        {% if not (deadline and deadline.is_past()) %}
+        <button type="submit" class="btn">Save Predictions</button>
+        {% endif %}
+    </form>
+    {% else %}
+    <p>No upcoming matches available. Check back later!</p>
+    {% endif %}
+</div>
+{% endblock %}
