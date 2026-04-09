@@ -1,50 +1,666 @@
 {% extends "base.html" %}
-
 {% block title %}Results - VM Tips{% endblock %}
+
+{% set flag_codes = {
+    'Algeria': 'dz', 'Argentina': 'ar', 'Australia': 'au', 'Austria': 'at',
+    'Belgium': 'be', 'Bosnia-Herzegovina': 'ba', 'Brazil': 'br',
+    'Canada': 'ca', 'Cape Verde Islands': 'cv', 'Colombia': 'co',
+    'Congo DR': 'cd', 'Croatia': 'hr', 'Curaçao': 'cw', 'Czechia': 'cz',
+    'Ecuador': 'ec', 'Egypt': 'eg', 'England': 'gb-eng', 'France': 'fr',
+    'Germany': 'de', 'Ghana': 'gh', 'Haiti': 'ht', 'Iran': 'ir',
+    'Iraq': 'iq', 'Ivory Coast': 'ci', 'Japan': 'jp', 'Jordan': 'jo',
+    'Mexico': 'mx', 'Morocco': 'ma', 'Netherlands': 'nl',
+    'New Zealand': 'nz', 'Norway': 'no', 'Panama': 'pa', 'Paraguay': 'py',
+    'Portugal': 'pt', 'Qatar': 'qa', 'Saudi Arabia': 'sa',
+    'Scotland': 'gb-sct', 'Senegal': 'sn', 'South Africa': 'za',
+    'South Korea': 'kr', 'Spain': 'es', 'Sweden': 'se',
+    'Switzerland': 'ch', 'Tunisia': 'tn', 'Turkey': 'tr',
+    'United States': 'us', 'Uruguay': 'uy', 'Uzbekistan': 'uz'
+} %}
+
+{% block extra_css %}
+<style>
+/* ── Toggle ── */
+.toggle-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border: 2px solid #4CAF50;
+    border-radius: 8px;
+    overflow: hidden;
+    width: fit-content;
+}
+.toggle-btn {
+    padding: 10px 28px;
+    background: white;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: bold;
+    color: #555;
+    transition: background 0.15s, color 0.15s;
+}
+.toggle-btn.active { background: #4CAF50; color: white; }
+.toggle-btn:hover:not(.active) { background: #f0faf0; }
+
+/* ── Per-game ── */
+.filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.filter-bar input {
+    padding: 9px 13px; border: 1.5px solid #ddd; border-radius: 6px;
+    font-size: 14px; min-width: 220px;
+}
+.filter-bar input:focus { outline: none; border-color: #4CAF50; }
+.match-card { border: 1px solid #e8e8e8; border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+.match-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: #f8f8f8; border-bottom: 1px solid #e8e8e8;
+    cursor: pointer; user-select: none; gap: 12px;
+}
+.match-header:hover { background: #f0f0f0; }
+.match-teams { font-weight: bold; font-size: 15px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.match-result { font-size: 13px; color: #27ae60; font-weight: bold; white-space: nowrap; }
+.match-result.pending { color: #aaa; font-weight: normal; }
+.match-date { font-size: 12px; color: #aaa; white-space: nowrap; }
+.chevron { font-size: 12px; color: #aaa; transition: transform 0.2s; }
+.match-card.open .chevron { transform: rotate(180deg); }
+.preds-table-wrap { display: none; padding: 0 16px 12px; }
+.match-card.open .preds-table-wrap { display: block; }
+
+/* ── Shared table styles ── */
+.preds-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+.preds-table th { background: #f4f4f4; padding: 8px 10px; text-align: left; font-size: 12px; color: #888; border-bottom: 1px solid #eee; }
+.preds-table td { padding: 8px 10px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+.preds-table tr:last-child td { border-bottom: none; }
+.pts-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+.pts-max    { background: #fef9c3; color: #b45309; }
+.pts-3      { background: #eafbea; color: #27ae60; }
+.pts-0      { background: #fdecea; color: #c0392b; }
+.pts-other  { background: #f0f0f0; color: #555; }
+
+/* ── Player selector ── */
+.player-selector {
+    position: relative;
+    margin-bottom: 20px;
+}
+.selector-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    background: white;
+    min-height: 42px;
+    user-select: none;
+    transition: border-color 0.15s;
+}
+.selector-bar:hover, .selector-bar.open { border-color: #4CAF50; }
+.selector-hint { color: #aaa; font-size: 14px; }
+.player-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #eafbea;
+    color: #1a7a30;
+    border-radius: 14px;
+    padding: 3px 10px 3px 10px;
+    font-size: 13px;
+    font-weight: bold;
+}
+.chip-remove {
+    cursor: pointer;
+    color: #999;
+    font-size: 14px;
+    line-height: 1;
+    margin-left: 2px;
+}
+.chip-remove:hover { color: #c0392b; }
+.selector-arrow { margin-left: auto; color: #aaa; font-size: 12px; transition: transform 0.2s; flex-shrink: 0; }
+.selector-bar.open .selector-arrow { transform: rotate(180deg); }
+
+.selector-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: white;
+    border: 1.5px solid #4CAF50;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    z-index: 100;
+    overflow: hidden;
+}
+.selector-dropdown.open { display: block; }
+.dropdown-search {
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.dropdown-search:focus { outline: none; }
+.dropdown-list { max-height: 240px; overflow-y: auto; }
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 14px;
+    transition: background 0.1s;
+}
+.dropdown-item:last-child { border-bottom: none; }
+.dropdown-item:hover { background: #f5fdf5; }
+.dropdown-item.selected { background: #eafbea; }
+.dropdown-item .check { color: #4CAF50; font-weight: bold; width: 16px; }
+.dropdown-item .item-pts { font-size: 12px; color: #aaa; }
+
+/* ── Comparison table ── */
+.compare-wrap { overflow-x: auto; }
+.compare-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 400px; }
+.compare-table th {
+    background: #f4f4f4; padding: 10px 12px; text-align: center;
+    font-size: 12px; color: #888; border-bottom: 2px solid #eee;
+    white-space: nowrap;
+}
+.compare-table th.match-col { text-align: left; min-width: 180px; }
+.compare-table th.user-col { min-width: 110px; }
+.compare-table td { padding: 8px 12px; border-bottom: 1px solid #f5f5f5; text-align: center; }
+.compare-table td.match-col { text-align: left; }
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table tr:hover td { background: #fafafa; }
+.compare-table .result-row td {
+    background: #f9f9f9; font-size: 11px; color: #aaa;
+    padding-top: 2px; padding-bottom: 6px; border-bottom: 2px solid #eee;
+}
+.compare-table .result-row td.match-col { color: #27ae60; font-weight: bold; }
+.user-col-header { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.user-col-header .remove-col { cursor: pointer; color: #ddd; font-size: 13px; }
+.user-col-header .remove-col:hover { color: #c0392b; }
+.user-col-header .col-pts { font-size: 11px; color: #aaa; font-weight: normal; }
+.flag-sm { vertical-align: middle; margin: 0 2px; }
+.no-players-hint { color: #aaa; font-style: italic; font-size: 14px; margin-top: 8px; }
+
+.round-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.round-btn {
+    padding: 5px 14px; border-radius: 20px; border: 1.5px solid #ddd;
+    background: white; font-size: 13px; cursor: pointer; color: #555;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.round-btn:hover { border-color: #4CAF50; color: #2d7a38; }
+.round-btn.active { border-color: #4CAF50; background: #4CAF50; color: white; }
+
+.pred-pill {
+    display: inline-block;
+    padding: 3px 11px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.02em;
+}
+.pred-correct { background: #d4f5dc; color: #1a7a30; }
+.pred-wrong   { background: #fde0de; color: #a93226; }
+.pred-open    { background: #f0f0f0; color: #888; }
+.pred-empty   { color: #ccc; font-size: 13px; }
+.result-col   { background: #f8f8f8; font-size: 13px; white-space: nowrap; }
+.outcome-tag  { display: inline-block; background: #e8e8e8; border-radius: 4px;
+                padding: 1px 5px; font-size: 11px; font-weight: bold;
+                color: #555; margin-left: 4px; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="card">
     <h2>Everyone's Predictions</h2>
-    <p>See what everyone predicted (shown after deadline).</p>
 
-    {% if predictions_by_match %}
+    {% if not predictions_by_match %}
+    <p style="color:#aaa; font-style:italic;">No predictions to show yet — results appear after each round's deadline passes.</p>
+    {% else %}
+
+    <div class="toggle-bar">
+        <button class="toggle-btn" id="btn-user" onclick="switchView('user')">Per User</button>
+        <button class="toggle-btn" id="btn-game" onclick="switchView('game')">Per Game</button>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════
+       PER-GAME VIEW
+    ══════════════════════════════════════════════════════════ #}
+    <div id="view-game" style="display:none;">
+        <div class="round-filter" id="gameRoundFilter"></div>
+        <div class="filter-bar">
+            <input type="text" id="team-filter" placeholder="🔍  Filter by team…" oninput="filterByTeam(this.value)">
+        </div>
         {% for match_id, data in predictions_by_match.items() %}
-        <div style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 4px;">
-            <h3>{{ data.match.home_team }} vs {{ data.match.away_team }}</h3>
-            <p>Date: {{ data.match.match_date.strftime('%Y-%m-%d %H:%M UTC') }}</p>
-
-            {% if data.match.finished %}
-            <p><strong>Final Score: {{ data.match.home_goals }} - {{ data.match.away_goals }}</strong></p>
-            {% else %}
-            <p><em>Match not yet played</em></p>
-            {% endif %}
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Prediction</th>
-                        {% if data.match.finished %}
-                        <th>Points</th>
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for pred in data.predictions %}
+        {% set m = data.match %}
+        {% set hc = flag_codes.get(m.home_team, '') %}
+        {% set ac = flag_codes.get(m.away_team, '') %}
+        <div class="match-card open" data-teams="{{ m.home_team|lower }} {{ m.away_team|lower }}" data-round="{{ m.round }}" onclick="toggleCard(this)">
+            <div class="match-header">
+                <div class="match-teams">
+                    {% if hc %}<img src="https://flagcdn.com/20x15/{{ hc }}.png" class="flag-sm">{% endif %}
+                    {{ m.home_team }}
+                    <span style="color:#bbb; font-weight:normal;">vs</span>
+                    {% if ac %}<img src="https://flagcdn.com/20x15/{{ ac }}.png" class="flag-sm">{% endif %}
+                    {{ m.away_team }}
+                </div>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    {% if m.finished %}
+                    <span class="match-result">{{ m.home_goals }} – {{ m.away_goals }}</span>
+                    {% else %}
+                    <span class="match-result pending">Not played</span>
+                    {% endif %}
+                    <span class="match-date local-time" data-utc="{{ m.match_date.strftime('%Y-%m-%dT%H:%M:00Z') }}">{{ m.match_date.strftime('%d %b %H:%M') }}</span>
+                    <span class="chevron">▼</span>
+                </div>
+            </div>
+            <div class="preds-table-wrap">
+                <table class="preds-table">
+                    <thead><tr>
+                        <th>Player</th><th>Prediction</th>
+                        {% if m.finished %}<th>Points</th>{% endif %}
+                    </tr></thead>
+                    <tbody>
+                    {% for pred in data.predictions|sort(attribute='user.name') %}
                     <tr>
                         <td>{{ pred.user.name }}</td>
-                        <td>{{ pred.predicted_home }} - {{ pred.predicted_away }}</td>
-                        {% if data.match.finished %}
-                        <td><strong>{{ pred.points or 0 }}</strong></td>
-                        {% endif %}
+                        <td>
+                            {% if pred.predicted_outcome %}{{ pred.predicted_outcome }}
+                            {% elif pred.predicted_home is not none and pred.predicted_away is not none %}{{ pred.predicted_home }} – {{ pred.predicted_away }}
+                            {% else %}<span style="color:#ccc">—</span>{% endif %}
+                        </td>
+                        {% if m.finished %}<td>
+                            {% if pred.points is not none %}
+                            {% set p = pred.points %}
+                            <span class="pts-badge {% if p==7 %}pts-max{% elif p==3 %}pts-3{% elif p==0 %}pts-0{% else %}pts-other{% endif %}">{{ p }} pts</span>
+                            {% else %}<span style="color:#ccc">—</span>{% endif %}
+                        </td>{% endif %}
                     </tr>
                     {% endfor %}
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
         {% endfor %}
-    {% else %}
-    <p>No predictions to show yet, or deadline hasn't passed.</p>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════
+       PER-USER VIEW
+    ══════════════════════════════════════════════════════════ #}
+    <div id="view-user">
+
+        <div class="player-selector" id="playerSelector">
+            <div class="selector-bar" id="selectorBar" onclick="toggleDropdown(event)">
+                <span class="selector-hint" id="selectorHint">Select players to compare…</span>
+                <span class="selector-arrow">▼</span>
+            </div>
+            <div class="selector-dropdown" id="selectorDropdown">
+                <input class="dropdown-search" type="text" placeholder="🔍  Search player…"
+                       oninput="filterDropdown(this.value)" onclick="event.stopPropagation()" autocomplete="off">
+                <div class="dropdown-list" id="dropdownList">
+                    {% for entry in users %}
+                    <div class="dropdown-item" data-uid="{{ entry.user.id }}" data-name="{{ entry.user.name|lower }}"
+                         onclick="toggleUser({{ entry.user.id }}, event)">
+                        <span><span class="check">&#10003;</span> {{ entry.user.name }}</span>
+                        <span class="item-pts">{{ entry.total_points }} pts</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="round-filter" id="roundFilter"></div>
+
+        <div id="compareArea">
+            <p class="no-players-hint">Select one or more players above to compare their predictions.</p>
+        </div>
+    </div>
+
     {% endif %}
 </div>
+
+{# ── Data for JS ── #}
+<script>
+const FLAG_CODES = {
+    {% for name, code in flag_codes.items() %}'{{ name }}': '{{ code }}',{% endfor %}
+};
+
+const MATCHES = [
+    {% for match_id, data in predictions_by_match.items() %}
+    {% set m = data.match %}
+    {
+        id: {{ m.id }},
+        home: {{ m.home_team | tojson }},
+        away: {{ m.away_team | tojson }},
+        finished: {{ 'true' if m.finished else 'false' }},
+        homeGoals: {{ m.home_goals | tojson }},
+        awayGoals: {{ m.away_goals | tojson }},
+        date: {{ m.match_date.strftime('%d %b') | tojson }},
+        round: {{ m.round | tojson }},
+    },
+    {% endfor %}
+];
+
+const ALL_USERS = [
+    {% for entry in users %}
+    { id: {{ entry.user.id }}, name: {{ entry.user.name | tojson }}, pts: {{ entry.total_points }} },
+    {% endfor %}
+];
+
+// PREDS[userId][matchId] = { outcome, home, away, pts }
+const PREDS = {
+    {% for uid, entry in predictions_by_user.items() %}
+    {{ uid }}: {
+        {% for pred in entry.predictions %}
+        {{ pred.match.id }}: {
+            outcome: {{ pred.predicted_outcome | tojson }},
+            home:    {{ pred.predicted_home    | tojson }},
+            away:    {{ pred.predicted_away    | tojson }},
+            pts:     {{ pred.points            | tojson }},
+        },
+        {% endfor %}
+    },
+    {% endfor %}
+};
+
+const ROUND_LABELS = {
+    'group_md1':    'Round 1',
+    'group_md2':    'Round 2',
+    'group_md3':    'Round 3',
+    'round_of_32':  'Round of 32',
+    'round_of_16':  'Round of 16',
+    'quarter_final':'Quarter Finals',
+    'semi_final':   'Semi Finals',
+    'final':        'Final',
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+var selectedUsers = [];  // array of user ids in selection order
+var selectedRound = 'all';
+
+// ── Per-game helpers ──────────────────────────────────────────────────────────
+function switchView(v) {
+    document.getElementById('view-game').style.display = v === 'game' ? '' : 'none';
+    document.getElementById('view-user').style.display = v === 'user' ? '' : 'none';
+    document.getElementById('btn-game').classList.toggle('active', v === 'game');
+    document.getElementById('btn-user').classList.toggle('active', v === 'user');
+    try { localStorage.setItem('vmtips_results_view', v); } catch(e) {}
+}
+function toggleCard(card) { card.classList.toggle('open'); }
+
+var gameRound = 'all';
+function buildGameRoundFilter() {
+    var seen = {}, orderedRounds = [];
+    MATCHES.forEach(function(m) {
+        if (!seen[m.round]) { seen[m.round] = true; orderedRounds.push(m.round); }
+    });
+    var bar = document.getElementById('gameRoundFilter');
+    if (!bar || orderedRounds.length <= 1) return;
+    var html = '<button class="round-btn active" onclick="setGameRound(\'all\', this)">All</button>';
+    orderedRounds.forEach(function(r) {
+        html += '<button class="round-btn" onclick="setGameRound(\'' + r + '\', this)">' + (ROUND_LABELS[r] || r) + '</button>';
+    });
+    bar.innerHTML = html;
+}
+function setGameRound(round, btn) {
+    gameRound = round;
+    document.querySelectorAll('#gameRoundFilter .round-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    applyGameFilters();
+}
+function filterByTeam(q) {
+    applyGameFilters(q);
+}
+function applyGameFilters(teamQ) {
+    var q = (teamQ !== undefined ? teamQ : document.getElementById('team-filter').value).toLowerCase().trim();
+    document.querySelectorAll('.match-card').forEach(function(c) {
+        var roundOk = gameRound === 'all' || c.dataset.round === gameRound;
+        var teamOk  = !q || c.dataset.teams.includes(q);
+        c.style.display = (roundOk && teamOk) ? '' : 'none';
+    });
+}
+
+// ── Dropdown ──────────────────────────────────────────────────────────────────
+function toggleDropdown(e) {
+    e.stopPropagation();
+    var bar  = document.getElementById('selectorBar');
+    var drop = document.getElementById('selectorDropdown');
+    var open = drop.classList.contains('open');
+    if (open) {
+        closeDropdown();
+    } else {
+        bar.classList.add('open');
+        drop.classList.add('open');
+        drop.querySelector('.dropdown-search').focus();
+    }
+}
+function closeDropdown() {
+    document.getElementById('selectorBar').classList.remove('open');
+    document.getElementById('selectorDropdown').classList.remove('open');
+    var s = document.querySelector('.dropdown-search');
+    if (s) { s.value = ''; filterDropdown(''); }
+}
+document.addEventListener('click', function(e) {
+    if (!document.getElementById('playerSelector').contains(e.target)) closeDropdown();
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDropdown();
+});
+
+function filterDropdown(q) {
+    q = q.toLowerCase().trim();
+    document.querySelectorAll('.dropdown-item').forEach(function(el) {
+        el.style.display = (!q || el.dataset.name.includes(q)) ? '' : 'none';
+    });
+}
+
+// ── Selection ─────────────────────────────────────────────────────────────────
+function toggleUser(uid, e) {
+    e.stopPropagation();
+    var idx = selectedUsers.indexOf(uid);
+    if (idx === -1) {
+        selectedUsers.push(uid);
+    } else {
+        selectedUsers.splice(idx, 1);
+    }
+    saveSelection();
+    renderChips();
+    renderDropdownChecks();
+    renderCompareTable();
+}
+
+function removeUser(uid) {
+    selectedUsers = selectedUsers.filter(function(id) { return id !== uid; });
+    saveSelection();
+    renderChips();
+    renderDropdownChecks();
+    renderCompareTable();
+}
+
+function saveSelection() {
+    try { localStorage.setItem('vmtips_selected_users', JSON.stringify(selectedUsers)); } catch(e) {}
+}
+
+function loadSelection() {
+    try {
+        var saved = localStorage.getItem('vmtips_selected_users');
+        if (!saved) return;
+        var ids = JSON.parse(saved);
+        // Only restore ids that still exist in ALL_USERS
+        selectedUsers = ids.filter(function(uid) {
+            return ALL_USERS.some(function(u) { return u.id === uid; });
+        });
+    } catch(e) {}
+}
+
+function renderChips() {
+    var bar  = document.getElementById('selectorBar');
+    var hint = document.getElementById('selectorHint');
+    // Remove existing chips (keep hint + arrow)
+    bar.querySelectorAll('.player-chip').forEach(function(c) { c.remove(); });
+    if (selectedUsers.length === 0) {
+        hint.style.display = '';
+    } else {
+        hint.style.display = 'none';
+        var arrow = bar.querySelector('.selector-arrow');
+        selectedUsers.forEach(function(uid) {
+            var user = ALL_USERS.find(function(u) { return u.id === uid; });
+            if (!user) return;
+            var chip = document.createElement('span');
+            chip.className = 'player-chip';
+            chip.innerHTML = user.name +
+                '<span class="chip-remove" onclick="removeUser(' + uid + '); event.stopPropagation();">×</span>';
+            bar.insertBefore(chip, arrow);
+        });
+    }
+}
+
+function renderDropdownChecks() {
+    document.querySelectorAll('.dropdown-item').forEach(function(el) {
+        var uid = parseInt(el.dataset.uid);
+        var sel = selectedUsers.indexOf(uid) !== -1;
+        el.classList.toggle('selected', sel);
+        el.querySelector('.check').style.visibility = sel ? 'visible' : 'hidden';
+    });
+}
+
+// ── Round filter ──────────────────────────────────────────────────────────────
+function buildRoundFilter() {
+    // Collect rounds that appear in MATCHES, in order
+    var seen = {}, orderedRounds = [];
+    MATCHES.forEach(function(m) {
+        if (!seen[m.round]) { seen[m.round] = true; orderedRounds.push(m.round); }
+    });
+
+    var bar = document.getElementById('roundFilter');
+    if (!bar || orderedRounds.length <= 1) return;  // no filter needed for single round
+
+    var html = '<button class="round-btn active" onclick="setRound(\'all\', this)">All</button>';
+    orderedRounds.forEach(function(r) {
+        var label = ROUND_LABELS[r] || r;
+        html += '<button class="round-btn" onclick="setRound(\'' + r + '\', this)">' + label + '</button>';
+    });
+    bar.innerHTML = html;
+}
+
+function setRound(round, btn) {
+    selectedRound = round;
+    document.querySelectorAll('.round-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    renderCompareTable();
+}
+
+// ── Comparison table helpers ──────────────────────────────────────────────────
+var SCORE_ROUNDS = {'quarter_final': 1, 'semi_final': 1, 'final': 1};
+
+function outcomeFromScore(h, a) {
+    return h > a ? '1' : a > h ? '2' : 'X';
+}
+
+function flagImg(team, size) {
+    var code = FLAG_CODES[team];
+    if (!code) return '';
+    return '<img src="https://flagcdn.com/' + size + '/' + code + '.png" class="flag-sm">';
+}
+
+function predCell(p, matchFinished) {
+    if (!p) return '<td><span class="pred-empty">—</span></td>';
+
+    var text;
+    if (p.outcome) {
+        text = p.outcome;
+    } else if (p.home !== null && p.away !== null) {
+        text = p.home + '–' + p.away;
+    } else {
+        return '<td><span class="pred-empty">—</span></td>';
+    }
+
+    var cls = matchFinished ? (p.pts > 0 ? 'pred-correct' : 'pred-wrong') : 'pred-open';
+    return '<td><span class="pred-pill ' + cls + '">' + text + '</span></td>';
+}
+
+function resultCell(m) {
+    if (!m.finished) return '<td class="result-col" style="color:#ccc;">—</td>';
+    var score = m.homeGoals + '–' + m.awayGoals;
+    return '<td class="result-col">' + score + '</td>';
+}
+
+function renderCompareTable() {
+    var area = document.getElementById('compareArea');
+    if (selectedUsers.length === 0) {
+        area.innerHTML = '<p class="no-players-hint">Select one or more players above to compare their predictions.</p>';
+        return;
+    }
+
+    // Apply round filter
+    var visibleMatches = selectedRound === 'all'
+        ? MATCHES
+        : MATCHES.filter(function(m) { return m.round === selectedRound; });
+
+    // Column point totals (scoped to visible matches)
+    var colPts = {};
+    selectedUsers.forEach(function(uid) { colPts[uid] = 0; });
+    visibleMatches.forEach(function(m) {
+        selectedUsers.forEach(function(uid) {
+            var p = (PREDS[uid] || {})[m.id];
+            if (p && p.pts !== null) colPts[uid] += p.pts;
+        });
+    });
+
+    // Header
+    var html = '<div class="compare-wrap"><table class="compare-table"><thead><tr>';
+    html += '<th class="match-col">Match</th>';
+    html += '<th class="result-col" style="background:#f4f4f4;">Result</th>';
+    selectedUsers.forEach(function(uid) {
+        var user = ALL_USERS.find(function(u) { return u.id === uid; });
+        html += '<th class="user-col"><div class="user-col-header">'
+             + '<span>' + user.name + '</span>'
+             + '<span class="col-pts">' + colPts[uid] + ' pts</span>'
+             + '<span class="remove-col" onclick="removeUser(' + uid + ')">×</span>'
+             + '</div></th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    // One row per match
+    visibleMatches.forEach(function(m) {
+        html += '<tr>';
+        html += '<td class="match-col">'
+             + flagImg(m.home, '16x12') + ' ' + m.home
+             + ' <span style="color:#bbb">vs</span> '
+             + flagImg(m.away, '16x12') + ' ' + m.away
+             + '</td>';
+        html += resultCell(m);
+        selectedUsers.forEach(function(uid) {
+            var p = (PREDS[uid] || {})[m.id];
+            html += predCell(p, m.finished);
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    area.innerHTML = html;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.dropdown-item .check').forEach(function(el) {
+    el.style.visibility = 'hidden';
+});
+buildRoundFilter();
+buildGameRoundFilter();
+
+// Restore last view (default: user)
+var savedView = 'user';
+try { savedView = localStorage.getItem('vmtips_results_view') || 'user'; } catch(e) {}
+switchView(savedView);
+
+loadSelection();
+if (selectedUsers.length > 0) {
+    renderChips();
+    renderDropdownChecks();
+    renderCompareTable();
+}
+</script>
 {% endblock %}

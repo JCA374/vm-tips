@@ -8,11 +8,23 @@
     <p>Predict World Cup knockout round scores and compete with your family.</p>
 
     {% if session.get('user_id') %}
-        <p>Welcome back, {{ session.get('user_email') }}!</p>
+        <p>Welcome back, {{ session.get('user_name') or session.get('user_email') }}!</p>
         <p>
             <a href="/predict" class="btn">Make Predictions</a>
             <a href="/leaderboard" class="btn btn-secondary">View Leaderboard</a>
         </p>
+
+        <div style="margin-top:20px; padding-top:20px; border-top:1px solid #f0f0f0;">
+            <p style="font-size:14px; color:#888; margin-bottom:10px;">Know someone who wants to join?</p>
+            <form method="POST" action="/invite" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <input type="email" name="email" placeholder="their@email.com" required
+                       style="flex:1; min-width:200px; padding:9px 12px; border:1.5px solid #ddd;
+                              border-radius:6px; font-size:14px;">
+                <button type="submit" class="btn btn-secondary" style="padding:9px 18px; font-size:14px;">
+                    Send invite
+                </button>
+            </form>
+        </div>
     {% else %}
         <p>
             <a href="/login" class="btn">Login</a>
@@ -24,9 +36,10 @@
 <div class="card">
     <h3>How it works</h3>
     <ol>
-        <li>Predict the exact score for each knockout round match</li>
+        <li>Predict the outcome for each group stage match (1 / X / 2)</li>
+        <li>Predict exact scores for the knockout rounds</li>
         <li>Update your predictions before each round's deadline</li>
-        <li>Earn points for:
+        <li>Earn points for correct predictions:
             <ul>
                 <li>Correct outcome (win/draw/loss): 3 points</li>
                 <li>Correct home team goals: 2 points</li>
@@ -35,5 +48,11 @@
         </li>
         <li>Compete on the leaderboard!</li>
     </ol>
+</div>
+
+<div class="card">
+    <h3>🔒 Logging in</h3>
+    <p>No passwords here. Just enter your email and we'll send you a login link — click it and you're in.</p>
+    <p style="margin-bottom:0;">Tick <strong>"Keep me logged in"</strong> when you log in and you'll stay logged in for 6 months, so you only need to do this once before the tournament.</p>
 </div>
 {% endblock %}

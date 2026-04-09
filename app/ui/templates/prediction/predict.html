@@ -82,8 +82,39 @@
 .match-status.saved   { color: #27ae60; }
 .match-status.result  { color: #2980b9; }
 .match-status.tbd     { color: #bbb; }
+
+.ox2-group { display: flex; gap: 6px; }
+.ox2-label {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 36px;
+    border: 2px solid #ccc; border-radius: 6px;
+    cursor: pointer; font-weight: bold; font-size: 15px;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+.ox2-label:has(input:checked) { border-color: #4CAF50; background: #eafbea; color: #27ae60; }
+.ox2-label:hover:not(.ox2-disabled) { border-color: #4CAF50; }
+.ox2-label.ox2-disabled { opacity: 0.5; cursor: default; }
+.ox2-label input[type=radio] { display: none; }
 </style>
 {% endblock %}
+
+{% set flag_codes = {
+    'Algeria': 'dz', 'Argentina': 'ar', 'Australia': 'au', 'Austria': 'at',
+    'Belgium': 'be', 'Bosnia-Herzegovina': 'ba', 'Brazil': 'br',
+    'Canada': 'ca', 'Cape Verde Islands': 'cv', 'Colombia': 'co',
+    'Congo DR': 'cd', 'Croatia': 'hr', 'Curaçao': 'cw', 'Czechia': 'cz',
+    'Ecuador': 'ec', 'Egypt': 'eg', 'England': 'gb-eng', 'France': 'fr',
+    'Germany': 'de', 'Ghana': 'gh', 'Haiti': 'ht', 'Iran': 'ir',
+    'Iraq': 'iq', 'Ivory Coast': 'ci', 'Japan': 'jp', 'Jordan': 'jo',
+    'Mexico': 'mx', 'Morocco': 'ma', 'Netherlands': 'nl',
+    'New Zealand': 'nz', 'Norway': 'no', 'Panama': 'pa', 'Paraguay': 'py',
+    'Portugal': 'pt', 'Qatar': 'qa', 'Saudi Arabia': 'sa',
+    'Scotland': 'gb-sct', 'Senegal': 'sn', 'South Africa': 'za',
+    'South Korea': 'kr', 'Spain': 'es', 'Sweden': 'se',
+    'Switzerland': 'ch', 'Tunisia': 'tn', 'Turkey': 'tr',
+    'United States': 'us', 'Uruguay': 'uy', 'Uzbekistan': 'uz'
+} %}
 
 {% block content %}
 <div class="card" style="padding-bottom: 8px;">
@@ -108,14 +139,14 @@
             <span class="deadline-badge locked">
                 Locked — deadline:
                 <span class="local-time" data-utc="{{ round.deadline.deadline.strftime('%Y-%m-%dT%H:%M:00Z') }}">
-                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }} UTC
+                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }}
                 </span>
             </span>
             {% else %}
             <span class="deadline-badge open">
                 Deadline:
                 <span class="local-time" data-utc="{{ round.deadline.deadline.strftime('%Y-%m-%dT%H:%M:00Z') }}">
-                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }} UTC
+                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }}
                 </span>
             </span>
             {% endif %}
@@ -129,6 +160,7 @@
             {% for match in round.matches %}
             {% set pred = predictions.get(match.id) %}
             {% set is_tbd = match.home_team == 'TBD' %}
+            {% set disabled = round.locked or match.finished or is_tbd %}
 
             {% if match.group and match.group != ns.last_group %}
             {% set ns.last_group = match.group %}
@@ -138,23 +170,46 @@
             {% endif %}
 
             <div class="match-row">
-                <span class="team-name home {% if is_tbd %}tbd{% endif %}">{{ match.home_team }}</span>
+                <span class="team-name home {% if is_tbd %}tbd{% endif %}">
+                    {{ match.home_team }}
+                    {% set fc = flag_codes.get(match.home_team, '') %}
+                    {% if fc %}<img src="https://flagcdn.com/32x24/{{ fc }}.png" alt="{{ match.home_team }}" style="vertical-align:middle;margin-left:6px;">{% endif %}
+                </span>
 
+                {% if round.is_score_round %}
+                {# ── Exact score inputs ── #}
                 <input class="score-input" type="number" name="home_{{ match.id }}"
                        min="0" max="20"
-                       value="{{ pred.predicted_home_goals if pred else '' }}"
+                       value="{{ pred.predicted_home_goals if pred and pred.predicted_home_goals is not none else '' }}"
                        placeholder="0"
-                       {% if round.locked or match.finished or is_tbd %}disabled{% endif %}>
-
+                       {% if disabled %}disabled{% endif %}>
                 <span class="separator">–</span>
-
                 <input class="score-input" type="number" name="away_{{ match.id }}"
                        min="0" max="20"
-                       value="{{ pred.predicted_away_goals if pred else '' }}"
+                       value="{{ pred.predicted_away_goals if pred and pred.predicted_away_goals is not none else '' }}"
                        placeholder="0"
-                       {% if round.locked or match.finished or is_tbd %}disabled{% endif %}>
+                       {% if disabled %}disabled{% endif %}>
 
-                <span class="team-name {% if is_tbd %}tbd{% endif %}">{{ match.away_team }}</span>
+                {% else %}
+                {# ── 1 X 2 radio buttons ── #}
+                {% set saved = pred.predicted_outcome if pred else '' %}
+                <div class="ox2-group">
+                    {% for val, label in [('1', '1'), ('X', 'X'), ('2', '2')] %}
+                    <label class="ox2-label {% if disabled %}ox2-disabled{% endif %}">
+                        <input type="radio" name="outcome_{{ match.id }}" value="{{ val }}"
+                               {% if saved == val %}checked{% endif %}
+                               {% if disabled %}disabled{% endif %}>
+                        {{ label }}
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <span class="team-name {% if is_tbd %}tbd{% endif %}">
+                    {% set fc = flag_codes.get(match.away_team, '') %}
+                    {% if fc %}<img src="https://flagcdn.com/32x24/{{ fc }}.png" alt="{{ match.away_team }}" style="vertical-align:middle;margin-right:6px;">{% endif %}
+                    {{ match.away_team }}
+                </span>
 
                 {% if match.finished %}
                 <span class="match-status result">
@@ -163,7 +218,7 @@
                 </span>
                 {% elif is_tbd %}
                 <span class="match-status tbd">TBD</span>
-                {% elif pred %}
+                {% elif pred and (pred.predicted_outcome or pred.predicted_home_goals is not none) %}
                 <span class="match-status saved">&#10003; Saved</span>
                 {% else %}
                 <span class="match-status"></span>
@@ -194,19 +249,5 @@ document.querySelectorAll('.tab-btn').forEach(function(btn) {
     });
 });
 
-// Local time conversion (fallback: Stockholm)
-(function() {
-    var tz = 'Europe/Stockholm';
-    try { var d = Intl.DateTimeFormat().resolvedOptions().timeZone; if (d) tz = d; } catch(e) {}
-    var fmt = new Intl.DateTimeFormat('sv-SE', {
-        timeZone: tz,
-        day: 'numeric', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-        timeZoneName: 'short'
-    });
-    document.querySelectorAll('.local-time').forEach(function(el) {
-        try { el.textContent = fmt.format(new Date(el.dataset.utc)); } catch(e) {}
-    });
-})();
 </script>
 {% endblock %}

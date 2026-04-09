@@ -6,10 +6,11 @@ A web application for family members to bet on World Cup groop staga and knockou
 
 ## Core Requirements
 
-- Users predict exact scores (home goals and away goals) for knockout round matches: Round of 16, Quarter-finals, Semi-finals, and Final
+- Two betting modes depending on the round:
+  - **1X2** (Group stage MD1–MD3, Round of 32, Round of 16): Users pick the outcome — 1 (home win), X (draw), or 2 (away win). 3 points for a correct pick, 0 for wrong.
+  - **Exact score** (Quarter-finals, Semi-finals, Final): Users predict the exact home and away goals. Points: 3 for correct outcome + 2 for correct home goals + 2 for correct away goals (max 7 per match).
 - Users can update their predictions before each round's deadline
 - Automatically fetch upcoming matches and results from official/reliable source
-- Award points for: correct outcome (win/loss/tie), correct home goals, correct away goals
 - Show a leaderboard ranking all participants by total points
 - Reveal other users' predictions only after the round deadline has passed
 
@@ -18,9 +19,11 @@ A web application for family members to bet on World Cup groop staga and knockou
 ### Public Pages
 - **Registration**: Join with email address
 - **Login**: Access via magic link sent to email
-- **Betting Form**: Enter predicted score (home goals and away goals) for each match in current round
+- **Betting Form**: For group stage and early knockout rounds, pick 1/X/2 per match. For Quarter-finals, Semi-finals and Final, enter exact predicted score.
 - **Leaderboard**: View current standings with total points and breakdown per round
-- **Other Bets**: View what others predicted (only after deadline)
+- **Results Page**: View what others predicted (only after deadline), with two display modes:
+  - **Per Game** (default): All matches listed as collapsible cards. Click a match to see every player's prediction and points. Text filter to narrow by team name.
+  - **Per User**: Searchable player list; select a player to see all their predictions, the actual results, and points per match. Players sorted by total points.
 - **Deadline Timer**: Clear display of when current round closes
 
 ### Admin Pages

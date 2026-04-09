@@ -2,22 +2,154 @@
 
 {% block title %}Login - VM Tips{% endblock %}
 
-{% block content %}
-<div class="card">
-    <h2>Login</h2>
-    <p>Enter your email to receive a magic login link.</p>
+{% block extra_css %}
+<style>
+.login-card {
+    max-width: 420px;
+    margin: 40px auto;
+}
+.login-card h2 {
+    margin-bottom: 6px;
+}
+.login-card .subtitle {
+    color: #888;
+    margin-bottom: 28px;
+    font-size: 15px;
+}
+.form-group {
+    margin-bottom: 16px;
+}
+.form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #555;
+}
+.form-group input {
+    width: 100%;
+    padding: 11px 14px;
+    font-size: 15px;
+    border: 1.5px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+.form-group input:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+.btn-full {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+}
+.sent-box {
+    text-align: center;
+    padding: 16px 0 8px;
+}
+.sent-box .check {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+.sent-box h3 {
+    margin-bottom: 8px;
+}
+.sent-box p {
+    color: #666;
+    font-size: 15px;
+    line-height: 1.5;
+}
+.sent-box .resend {
+    margin-top: 24px;
+    font-size: 14px;
+    color: #999;
+}
+.sent-box .resend a {
+    color: #4CAF50;
+}
+.name-field {
+    display: none;
+}
+.name-field.visible {
+    display: block;
+}
+.hint {
+    font-size: 13px;
+    color: #aaa;
+    margin-top: 4px;
+}
+</style>
+{% endblock %}
 
-    <form method="POST">
+{% block content %}
+<div class="card login-card">
+
+{% if sent_to %}
+    {# ── Link sent ── #}
+    <div class="sent-box">
+        <div class="check">📬</div>
+        <h3>Check your email!</h3>
+        <p>We sent a login link to<br><strong>{{ sent_to }}</strong></p>
+        <p>Click the link in the email to log in.<br>It stays valid until you request a new one.</p>
+        <p class="resend">Wrong email or didn't receive it? <a href="{{ url_for('auth.login') }}">Try again</a></p>
+    </div>
+
+{% else %}
+    {# ── Login / register form ── #}
+    <h2>⚽ VM Tips</h2>
+    <p class="subtitle">Enter your email to get a login link — no password needed.</p>
+
+    <form method="POST" id="login-form">
         <div class="form-group">
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email"
+                   value="{{ email or '' }}"
+                   placeholder="you@example.com"
+                   autocomplete="email"
+                   required autofocus>
         </div>
 
-        <button type="submit" class="btn">Send Magic Link</button>
+        <div class="form-group name-field {% if needs_name %}visible{% endif %}" id="name-field">
+            <label for="name">Your name</label>
+            <input type="text" id="name" name="name"
+                   placeholder="E.g. Jonas"
+                   autocomplete="given-name"
+                   {% if needs_name %}required{% endif %}>
+            <p class="hint">Looks like you're new — just tell us your name and we'll create your account.</p>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px;">
+            <input type="checkbox" id="remember" name="remember" style="width:auto; margin:0;"
+                   {% if remember %}checked{% endif %}>
+            <label for="remember" style="font-weight:normal; font-size:14px; color:#555; margin:0; cursor:pointer;">
+                Keep me logged in for 6 months
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-full" id="submit-btn">Send login link</button>
     </form>
 
-    <p style="margin-top: 1rem;">
-        Don't have an account? <a href="/register">Register here</a>
-    </p>
+    <div style="margin-top:28px; padding-top:20px; border-top:1px solid #f0f0f0;">
+        <p style="font-size:13px; color:#aaa; margin:0; line-height:1.6;">
+            🔒 <strong>No password needed.</strong> We send a link to your email — click it and you're in.
+            Tick "Keep me logged in" and you won't need to log in again for months.
+        </p>
+    </div>
+{% endif %}
+
 </div>
+
+<script>
+// If server flagged this as a new user, focus the name field
+(function () {
+    var nameField = document.getElementById('name-field');
+    var nameInput = document.getElementById('name');
+    var submitBtn = document.getElementById('submit-btn');
+    if (nameField && nameField.classList.contains('visible')) {
+        if (nameInput && !nameInput.value) nameInput.focus();
+        if (submitBtn) submitBtn.textContent = 'Create account & send link';
+    }
+})();
+</script>
 {% endblock %}

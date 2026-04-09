@@ -122,7 +122,7 @@
         <a href="/predict">Make Predictions</a>
         <a href="/results">View Results</a>
         {% if session.get('is_admin') %}
-        <a href="/admin">Admin</a>
+        <a href="/backstage">⚙ Admin</a>
         {% endif %}
         <a href="/logout">Logout</a>
     </nav>
@@ -143,5 +143,21 @@
     </div>
 
     {% block extra_js %}{% endblock %}
+    <script>
+    // Convert all .local-time elements from UTC to the browser's local timezone
+    (function () {
+        var tz = 'Europe/Stockholm';
+        try { var d = Intl.DateTimeFormat().resolvedOptions().timeZone; if (d) tz = d; } catch(e) {}
+        var fmt = new Intl.DateTimeFormat('sv-SE', {
+            timeZone: tz,
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+            timeZoneName: 'short'
+        });
+        document.querySelectorAll('.local-time').forEach(function (el) {
+            try { el.textContent = fmt.format(new Date(el.dataset.utc)); } catch(e) {}
+        });
+    })();
+    </script>
 </body>
 </html>

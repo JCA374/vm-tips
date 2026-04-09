@@ -5,6 +5,9 @@ from sqlalchemy.orm import relationship, sessionmaker
 from datetime import datetime
 from config import settings
 
+# Rounds that use exact-score betting (QF / SF / Final)
+SCORE_ROUNDS = {'quarter_final', 'semi_final', 'final'}
+
 Base = declarative_base()
 engine = create_engine(settings.SQLALCHEMY_DATABASE_URI)
 SessionLocal = sessionmaker(bind=engine)
@@ -23,6 +26,7 @@ class User(Base):
     # Relationships
     predictions = relationship('Prediction', back_populates='user', cascade='all, delete-orphan')
     magic_links = relationship('MagicLink', back_populates='user', cascade='all, delete-orphan')
+    sent_invites = relationship('Invite', back_populates='sender', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<User {self.email}>'
@@ -81,8 +85,12 @@ class Prediction(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     match_id = Column(Integer, ForeignKey('matches.id'), nullable=False)
 
-    predicted_home_goals = Column(Integer, nullable=False)
-    predicted_away_goals = Column(Integer, nullable=False)
+    # 1X2 rounds: store '1', 'X', or '2' here (home win / draw / away win)
+    predicted_outcome = Column(String(1), nullable=True)
+
+    # Exact-score rounds (QF / SF / Final): store goals here
+    predicted_home_goals = Column(Integer, nullable=True)
+    predicted_away_goals = Column(Integer, nullable=True)
 
     # Calculated points (null until match is finished)
     points = Column(Integer, nullable=True)
@@ -99,31 +107,54 @@ class Prediction(Base):
         if not self.match.finished:
             return None
 
-        points = 0
         actual_home = self.match.home_goals
         actual_away = self.match.away_goals
-        pred_home = self.predicted_home_goals
-        pred_away = self.predicted_away_goals
+        actual_outcome = 'X' if actual_home == actual_away else ('1' if actual_home > actual_away else '2')
 
-        # Correct outcome (win/draw/loss)
-        actual_outcome = 'draw' if actual_home == actual_away else ('home' if actual_home > actual_away else 'away')
-        pred_outcome = 'draw' if pred_home == pred_away else ('home' if pred_home > pred_away else 'away')
-
-        if actual_outcome == pred_outcome:
-            points += 3  # 3 points for correct outcome
-
-        # Correct home goals
-        if actual_home == pred_home:
-            points += 2  # 2 points for correct home goals
-
-        # Correct away goals
-        if actual_away == pred_away:
-            points += 2  # 2 points for correct away goals
-
-        return points
+        if self.match.round in SCORE_ROUNDS:
+            # Exact score: max 7 pts
+            if self.predicted_home_goals is None or self.predicted_away_goals is None:
+                return 0
+            points = 0
+            pred_outcome = 'X' if self.predicted_home_goals == self.predicted_away_goals else (
+                '1' if self.predicted_home_goals > self.predicted_away_goals else '2'
+            )
+            if actual_outcome == pred_outcome:
+                points += 3
+            if actual_home == self.predicted_home_goals:
+                points += 2
+            if actual_away == self.predicted_away_goals:
+                points += 2
+            return points
+        else:
+            # 1X2: 3 pts for correct pick
+            if not self.predicted_outcome:
+                return 0
+            return 3 if self.predicted_outcome == actual_outcome else 0
 
     def __repr__(self):
         return f'<Prediction user={self.user_id} match={self.match_id} {self.predicted_home_goals}-{self.predicted_away_goals}>'
+
+
+class Invite(Base):
+    """Invite tokens — each user can send a limited number"""
+    __tablename__ = 'invites'
+
+    id = Column(Integer, primary_key=True)
+    sender_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    recipient_email = Column(String(255), nullable=False)
+    token = Column(String(255), unique=True, nullable=False, index=True)
+    used = Column(Boolean, default=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    sender = relationship('User', back_populates='sent_invites')
+
+    def is_valid(self):
+        return not self.used and datetime.utcnow() < self.expires_at
+
+    def __repr__(self):
+        return f'<Invite from={self.sender_id} to={self.recipient_email}>'
 
 
 class RoundDeadline(Base):

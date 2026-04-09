@@ -56,7 +56,7 @@
             {% for deadline in existing_deadlines %}
             <tr>
                 <td>{{ deadline.round.replace('_', ' ').title() }}</td>
-                <td>{{ deadline.deadline.strftime('%Y-%m-%d %H:%M UTC') }}</td>
+                <td><span class="local-time" data-utc="{{ deadline.deadline.strftime('%Y-%m-%dT%H:%M:00Z') }}">{{ deadline.deadline.strftime('%Y-%m-%d %H:%M') }}</span></td>
                 <td>{{ 'Passed' if deadline.is_past() else 'Active' }}</td>
             </tr>
             {% endfor %}

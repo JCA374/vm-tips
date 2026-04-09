@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}You're invited — VM Tips{% endblock %}
+
+{% block extra_css %}
+<style>
+.join-card {
+    max-width: 420px;
+    margin: 40px auto;
+    text-align: center;
+}
+.join-card .icon { font-size: 52px; margin-bottom: 12px; }
+.join-card h2 { margin-bottom: 8px; }
+.join-card .subtitle { color: #888; margin-bottom: 28px; font-size: 15px; }
+.form-group { text-align: left; margin-bottom: 16px; }
+.form-group label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 14px; color: #555; }
+.form-group input {
+    width: 100%; padding: 11px 14px; font-size: 15px;
+    border: 1.5px solid #ddd; border-radius: 6px;
+    box-sizing: border-box; transition: border-color 0.15s;
+}
+.form-group input:focus { outline: none; border-color: #4CAF50; }
+.btn-full { width: 100%; padding: 12px; font-size: 16px; }
+.email-chip {
+    display: inline-block;
+    background: #f0f0f0;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 24px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card join-card">
+
+{% if sent %}
+    <div class="icon">📬</div>
+    <h2>Almost there!</h2>
+    <p style="color:#555; font-size:15px; line-height:1.6;">
+        We sent a login link to <strong>{{ invite.email }}</strong>.<br>
+        Click it to enter the competition.
+    </p>
+    <p style="margin-top:20px;">
+        <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Back to login</a>
+    </p>
+
+{% else %}
+    <div class="icon">⚽</div>
+    <h2>You're invited!</h2>
+    <p class="subtitle"><strong>{{ invite.sender_name.split()[0] }}</strong> invited you to join VM Tips — a World Cup prediction competition.</p>
+
+    <div class="email-chip">{{ invite.email }}</div>
+
+    <form method="POST">
+        <input type="hidden" name="invite_token" value="{{ token }}">
+        <div class="form-group">
+            <label for="name">What's your name?</label>
+            <input type="text" id="name" name="name"
+                   placeholder="E.g. Anna"
+                   autocomplete="given-name"
+                   required autofocus>
+        </div>
+        <button type="submit" class="btn btn-full">Join the competition</button>
+    </form>
+{% endif %}
+
+</div>
+{% endblock %}

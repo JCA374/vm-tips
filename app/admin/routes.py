@@ -1,21 +1,21 @@
 """Admin routes - User management, deadlines, system status"""
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort
+from functools import wraps
 from datetime import datetime
 from database.models import User, Match, Prediction, RoundDeadline, SessionLocal
 from app.match_data.service import sync_matches, update_match_results
 from app.prediction.service import calculate_all_scores
+from config import settings
 
 admin_bp = Blueprint('admin', __name__)
 
 
 def require_admin(f):
-    """Decorator to require admin access"""
-    from functools import wraps
+    """Decorator to require admin access — returns 404 to non-admins so the page appears not to exist"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('is_admin'):
-            flash('Admin access required.')
-            return redirect(url_for('auth.login'))
+        if session.get('user_email') != settings.ADMIN_EMAIL:
+            abort(404)
         return f(*args, **kwargs)
     return decorated_function
 

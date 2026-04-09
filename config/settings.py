@@ -25,10 +25,21 @@ MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@vm-tips.com')
 FOOTBALL_API_URL = os.getenv('FOOTBALL_API_URL', 'https://api.football-data.org/v4')
 FOOTBALL_API_KEY = os.getenv('FOOTBALL_API_KEY')
 
-# Admin credentials
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'admin@example.com')
-ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH')
+# Admin
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'jonca374@gmail.com')
 
 # Application settings
 MAGIC_LINK_EXPIRY_MINUTES = int(os.getenv('MAGIC_LINK_EXPIRY_MINUTES', 30))
 APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
+
+# Sessions
+SESSION_PERMANENT = False  # controlled per-login via "remember me"
+PERMANENT_SESSION_LIFETIME_DAYS = int(os.getenv('PERMANENT_SESSION_LIFETIME_DAYS', 180))
+
+# Security
+MAX_USERS = int(os.getenv('MAX_USERS', 30))
+MAGIC_LINK_EXPIRY_HOURS = int(os.getenv('MAGIC_LINK_EXPIRY_HOURS', 24))
+INVITE_LIMIT_PER_USER = 10         # Hidden from UI — do not expose in templates
+INVITE_EXPIRY_DAYS = 7
+RATELIMIT_STORAGE_URI = os.getenv('RATELIMIT_STORAGE_URI', 'memory://')
+RATELIMIT_DEFAULT = '200 per day'
