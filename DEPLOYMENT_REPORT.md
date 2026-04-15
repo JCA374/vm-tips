@@ -93,8 +93,8 @@ certbot --nginx -d storahultsvm.se -d www.storahultsvm.se
 From your local machine:
 
 ```bash
-# 1. Upload changed files
-rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' \
+# 1. Upload changed files (.env excluded — server keeps its own production config)
+rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' --exclude='.env' \
   /home/jonas/Code/sport/vm/ root@178.128.254.166:/opt/vm-tips/
 
 # 2. Rebuild and restart
