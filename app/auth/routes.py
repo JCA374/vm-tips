@@ -1,32 +1,47 @@
 """Authentication routes - Login, logout, magic links"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
-from app.auth.service import send_magic_link, verify_magic_link, check_email_exists, send_invite, accept_invite, mark_invite_used
+from app.auth.service import (
+    send_magic_link, verify_magic_link, check_email_exists,
+    send_invite, accept_invite, mark_invite_used,
+    user_has_password, login_with_password, set_password,
+)
 
 auth_bp = Blueprint('auth', __name__)
 
 
-def _limiter():
-    """Import limiter lazily to avoid circular import"""
-    from app import limiter
-    return limiter
+def _start_session(user, remember=False):
+    """Set session variables after a successful login"""
+    from config import settings
+    session.permanent = remember
+    session['user_id']    = user['id']
+    session['user_email'] = user['email']
+    session['user_name']  = user['name']
+    session['is_admin']   = user['email'] == settings.ADMIN_EMAIL
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """Smart login — handles both existing users and new registrations"""
     if request.method == 'POST':
-        # Rate-limit: 3 per email/hour, 10 per IP/hour
-        lim = _limiter()
-        email = request.form.get('email', '').strip()
-        name  = request.form.get('name', '').strip() or None
+        email    = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '').strip()
         remember = request.form.get('remember') == 'on'
+        mode     = request.form.get('mode', 'link')   # 'password' or 'link'
 
         if not email:
             flash('Please enter your email.', 'error')
             return redirect(url_for('auth.login'))
 
-        # Apply per-IP rate limit (per-email limit handled below via decorator on the blueprint)
-        # Flask-Limiter decorators can't easily key on form fields, so we check manually.
+        # --- Password login path ---
+        if mode == 'password' and password:
+            user = login_with_password(email, password)
+            if user:
+                _start_session(user, remember)
+                return redirect(url_for('index'))
+            flash('Wrong password. Try again or use a login link.', 'error')
+            return render_template('auth/login.html', email=email, show_password=True, remember=remember)
+
+        # --- Magic link path ---
+        name = request.form.get('name', '').strip() or None
         result = send_magic_link(email, name=name)
 
         if result['status'] == 'error':
@@ -34,7 +49,7 @@ def login():
             if msg == 'new_user':
                 return render_template('auth/login.html', email=email, needs_name=True, remember=remember)
             if msg == 'max_users':
-                flash('This competition is full (max 30 players). Contact Jonas to be added.', 'error')
+                flash('This competition is full. Contact Jonas to be added.', 'error')
                 return redirect(url_for('auth.login'))
             flash(result['message'], 'error')
             return redirect(url_for('auth.login'))
@@ -43,7 +58,21 @@ def login():
         resp.set_cookie('vm_remember', '1' if remember else '0', max_age=600, httponly=True)
         return resp
 
+    # Check if the email from a failed attempt should show password field
     return render_template('auth/login.html')
+
+
+@auth_bp.route('/login/check-email', methods=['POST'])
+def check_email():
+    """
+    AJAX endpoint: given an email, returns whether the user has a password set.
+    Used by the login form to decide which field to show.
+    """
+    from flask import jsonify
+    email = request.form.get('email', '').strip().lower()
+    has_pw = user_has_password(email)
+    exists = bool(check_email_exists(email))
+    return jsonify({'has_password': has_pw, 'exists': exists})
 
 
 @auth_bp.route('/auth/verify')
@@ -53,20 +82,48 @@ def verify():
     user = verify_magic_link(token)
 
     if user:
-        from config import settings
         remember = request.cookies.get('vm_remember') == '1'
-        session.permanent = remember
-        session['user_id']    = user['id']
-        session['user_email'] = user['email']
-        session['user_name']  = user['name']
-        session['is_admin']   = user['email'] == settings.ADMIN_EMAIL
-        flash(f"Welcome, {user['name'].split()[0]}!")
+        _start_session(user, remember)
         resp = make_response(redirect(url_for('index')))
         resp.delete_cookie('vm_remember')
+
+        # If user hasn't set a password yet, send them to set one
+        if not user_has_password(user['email']):
+            resp = make_response(redirect(url_for('auth.set_password_page')))
+            resp.delete_cookie('vm_remember')
+
+        flash(f"Welcome, {user['name'].split()[0]}!")
         return resp
     else:
         flash('This link is invalid, expired, or has already been used. Request a new one below.', 'error')
         return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/auth/set-password', methods=['GET', 'POST'])
+def set_password_page():
+    """Let the user set or update their password after logging in via magic link"""
+    if not session.get('user_id'):
+        return redirect(url_for('auth.login'))
+
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm  = request.form.get('confirm', '')
+
+        if len(password) < 8:
+            flash('Password must be at least 8 characters.', 'error')
+            return render_template('auth/set_password.html')
+
+        if password != confirm:
+            flash('Passwords do not match.', 'error')
+            return render_template('auth/set_password.html')
+
+        ok = set_password(session['user_id'], password)
+        if ok:
+            flash('Password saved! You can now log in with your email and password.')
+            return redirect(url_for('index'))
+        flash('Something went wrong. Please try again.', 'error')
+
+    return render_template('auth/set_password.html')
 
 
 @auth_bp.route('/logout')
@@ -117,7 +174,6 @@ def join():
             flash('Please enter your name.', 'error')
             return render_template('auth/join.html', invite=invite_data, token=token)
 
-        # Create account and send magic link
         result = send_magic_link(invite_data['email'], name=name)
 
         if result['status'] == 'error' and result.get('message') == 'max_users':

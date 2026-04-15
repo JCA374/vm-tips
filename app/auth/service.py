@@ -3,6 +3,7 @@ import secrets
 from datetime import datetime, timedelta
 from flask_mail import Message
 from flask import current_app
+from werkzeug.security import generate_password_hash, check_password_hash
 from database.models import User, MagicLink, SessionLocal
 from config import settings
 
@@ -18,6 +19,55 @@ def check_email_exists(email):
     try:
         user = db.query(User).filter_by(email=email.lower().strip()).first()
         return user.name if user else None
+    finally:
+        db.close()
+
+
+def user_has_password(email):
+    """Return True if the user exists and has a password set"""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(email=email.lower().strip()).first()
+        return bool(user and user.password_hash)
+    finally:
+        db.close()
+
+
+def set_password(user_id, password):
+    """Hash and save a password for the user. Returns True on success."""
+    db = SessionLocal()
+    try:
+        user = db.query(User).get(user_id)
+        if not user:
+            return False
+        user.password_hash = generate_password_hash(password)
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        return False
+    finally:
+        db.close()
+
+
+def login_with_password(email, password):
+    """
+    Verify email + password.
+    Returns user dict on success, None on failure.
+    """
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(email=email.lower().strip()).first()
+        if not user or not user.password_hash:
+            return None
+        if not check_password_hash(user.password_hash, password):
+            return None
+        return {
+            'id': user.id,
+            'email': user.email,
+            'name': user.name,
+            'is_admin': user.is_admin,
+        }
     finally:
         db.close()
 

@@ -1,36 +1,83 @@
 {% extends "base.html" %}
+{% block title %}Users — Admin{% endblock %}
 
-{% block title %}User Management - VM Tips{% endblock %}
+{% block extra_css %}
+<style>
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    color: white;
+}
+.btn-danger { background: #e74c3c; }
+.btn-danger:hover { background: #c0392b; }
+.btn-warning { background: #e67e22; }
+.btn-warning:hover { background: #d35400; }
+.badge-admin {
+    background: #2ecc71;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="card">
-    <h2>User Management</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h2>Users ({{ rows|length }})</h2>
+        <a href="/backstage" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">← Dashboard</a>
+    </div>
 
-    {% if users %}
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Admin</th>
+                <th>Role</th>
+                <th>Predictions</th>
+                <th>Points</th>
                 <th>Joined</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            {% for user in users %}
+            {% for user, pred_count, total_points in rows %}
             <tr>
-                <td>{{ user.id }}</td>
                 <td>{{ user.name }}</td>
                 <td>{{ user.email }}</td>
-                <td>{{ 'Yes' if user.is_admin else 'No' }}</td>
-                <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    {% if user.is_admin %}
+                    <span class="badge-admin">Admin</span>
+                    {% else %}
+                    Player
+                    {% endif %}
+                </td>
+                <td>{{ pred_count }}</td>
+                <td>{{ total_points or 0 }}</td>
+                <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
+                <td style="white-space:nowrap;">
+                    <form method="POST" action="/backstage/users/{{ user.id }}/toggle-admin" style="display:inline;">
+                        <button type="submit" class="btn-sm btn-warning"
+                            onclick="return confirm('Toggle admin for {{ user.name }}?')">
+                            {{ 'Remove admin' if user.is_admin else 'Make admin' }}
+                        </button>
+                    </form>
+                    {% if user.email != session.user_email %}
+                    <form method="POST" action="/backstage/users/{{ user.id }}/delete" style="display:inline; margin-left:4px;">
+                        <button type="submit" class="btn-sm btn-danger"
+                            onclick="return confirm('Delete {{ user.name }} and all their predictions? This cannot be undone.')">
+                            Delete
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    {% else %}
-    <p>No users yet.</p>
-    {% endif %}
 </div>
 {% endblock %}

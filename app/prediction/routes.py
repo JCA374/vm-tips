@@ -41,14 +41,20 @@ def predict():
 
     if request.method == 'POST':
         user_id = session['user_id']
+        active_round = request.form.get('active_round', '')
+
         for match in all_matches:
             if match.round in SCORE_ROUNDS:
                 home_key = f'home_{match.id}'
                 away_key = f'away_{match.id}'
                 if home_key in request.form and away_key in request.form:
+                    home_raw = request.form[home_key].strip()
+                    away_raw = request.form[away_key].strip()
+                    if home_raw == '' or away_raw == '':
+                        continue  # user left it blank — skip, don't break
                     try:
-                        home_goals = int(request.form[home_key])
-                        away_goals = int(request.form[away_key])
+                        home_goals = int(home_raw)
+                        away_goals = int(away_raw)
                         result = submit_prediction(user_id, match.id, home_goals=home_goals, away_goals=away_goals)
                         if result['status'] == 'error':
                             flash(f"{match.home_team} vs {match.away_team}: {result['message']}", 'error')
@@ -61,8 +67,38 @@ def predict():
                     result = submit_prediction(user_id, match.id, outcome=outcome)
                     if result['status'] == 'error':
                         flash(f"{match.home_team} vs {match.away_team}: {result['message']}", 'error')
+
         flash('Predictions saved!')
-        return redirect(url_for('prediction.predict'))
+
+        # Warn about any open-round matches that still have no bet
+        user_preds_after = get_user_predictions(user_id)
+        pred_map = {p.match_id: p for p in user_preds_after}
+
+        for round_key, round_label in ROUNDS:
+            deadline = deadlines.get(round_key)
+            if deadline and deadline.is_past():
+                continue  # locked — not the user's fault
+            round_matches = [
+                m for m in all_matches
+                if m.round == round_key and not m.finished and m.home_team != 'TBD'
+            ]
+            missing = []
+            for m in round_matches:
+                pred = pred_map.get(m.id)
+                if m.round in SCORE_ROUNDS:
+                    if not pred or pred.predicted_home_goals is None:
+                        missing.append(m)
+                else:
+                    if not pred or not pred.predicted_outcome:
+                        missing.append(m)
+            if missing:
+                names = ', '.join(f"{m.home_team} vs {m.away_team}" for m in missing)
+                flash(f"Missing bet in {round_label}: {names}", 'warning')
+
+        redirect_url = url_for('prediction.predict')
+        if active_round:
+            redirect_url += f'?tab={active_round}'
+        return redirect(redirect_url)
 
     user_id = session['user_id']
     user_preds = get_user_predictions(user_id)

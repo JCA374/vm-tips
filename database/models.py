@@ -20,6 +20,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -176,8 +177,15 @@ class RoundDeadline(Base):
 
 
 def init_db():
-    """Initialize the database - create all tables"""
+    """Initialize the database - create all tables and run migrations"""
+    from sqlalchemy import text
     Base.metadata.create_all(engine)
+    # Migration: add password_hash column if it doesn't exist yet
+    with engine.connect() as conn:
+        existing_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
+        if 'password_hash' not in existing_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
+            conn.commit()
 
 
 def get_db():

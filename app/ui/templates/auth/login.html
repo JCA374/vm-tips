@@ -1,84 +1,42 @@
 {% extends "base.html" %}
-
-{% block title %}Login - VM Tips{% endblock %}
+{% block title %}{{ t.login_title }} — {{ t.app_name }}{% endblock %}
 
 {% block extra_css %}
 <style>
-.login-card {
-    max-width: 420px;
-    margin: 40px auto;
-}
-.login-card h2 {
-    margin-bottom: 6px;
-}
-.login-card .subtitle {
-    color: #888;
-    margin-bottom: 28px;
-    font-size: 15px;
-}
-.form-group {
-    margin-bottom: 16px;
-}
-.form-group label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 6px;
-    font-size: 14px;
-    color: #555;
-}
+.login-card { max-width: 420px; margin: 40px auto; }
+.login-card h2 { margin-bottom: 6px; }
+.login-card .subtitle { color: #888; margin-bottom: 28px; font-size: 15px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 14px; color: #555; }
 .form-group input {
-    width: 100%;
-    padding: 11px 14px;
-    font-size: 15px;
-    border: 1.5px solid #ddd;
-    border-radius: 6px;
-    box-sizing: border-box;
-    transition: border-color 0.15s;
+    width: 100%; padding: 11px 14px; font-size: 15px;
+    border: 1.5px solid #ddd; border-radius: 6px;
+    box-sizing: border-box; transition: border-color 0.15s;
 }
-.form-group input:focus {
-    outline: none;
-    border-color: #4CAF50;
+.form-group input:focus { outline: none; border-color: #4CAF50; }
+.btn-full { width: 100%; padding: 12px; font-size: 16px; }
+.divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 24px 0; color: #bbb; font-size: 13px;
 }
-.btn-full {
-    width: 100%;
-    padding: 12px;
-    font-size: 16px;
+.divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: #eee;
 }
-.sent-box {
-    text-align: center;
-    padding: 16px 0 8px;
+.sent-box { text-align: center; padding: 16px 0 8px; }
+.sent-box .check { font-size: 48px; margin-bottom: 12px; }
+.sent-box h3 { margin-bottom: 8px; }
+.sent-box p { color: #666; font-size: 15px; line-height: 1.5; }
+.sent-box .resend { margin-top: 24px; font-size: 14px; color: #999; }
+.sent-box .resend a { color: #4CAF50; }
+.name-field { display: none; }
+.name-field.visible { display: block; }
+.hint { font-size: 13px; color: #aaa; margin-top: 4px; }
+.link-btn {
+    background: none; border: none; color: #4CAF50;
+    cursor: pointer; font-size: 14px; padding: 0; text-decoration: underline;
 }
-.sent-box .check {
-    font-size: 48px;
-    margin-bottom: 12px;
-}
-.sent-box h3 {
-    margin-bottom: 8px;
-}
-.sent-box p {
-    color: #666;
-    font-size: 15px;
-    line-height: 1.5;
-}
-.sent-box .resend {
-    margin-top: 24px;
-    font-size: 14px;
-    color: #999;
-}
-.sent-box .resend a {
-    color: #4CAF50;
-}
-.name-field {
-    display: none;
-}
-.name-field.visible {
-    display: block;
-}
-.hint {
-    font-size: 13px;
-    color: #aaa;
-    margin-top: 4px;
-}
+.pw-toggle { font-size: 13px; color: #888; margin-top: 6px; }
+.pw-toggle a { color: #4CAF50; }
 </style>
 {% endblock %}
 
@@ -86,69 +44,138 @@
 <div class="card login-card">
 
 {% if sent_to %}
-    {# ── Link sent ── #}
     <div class="sent-box">
         <div class="check">📬</div>
-        <h3>Check your email!</h3>
-        <p>We sent a login link to<br><strong>{{ sent_to }}</strong></p>
-        <p>Click the link in the email to log in.<br>It stays valid until you request a new one.</p>
-        <p class="resend">Wrong email or didn't receive it? <a href="{{ url_for('auth.login') }}">Try again</a></p>
+        <h3>{{ t.login_sent_title }}</h3>
+        <p>{{ t.login_sent_text }}<br><strong>{{ sent_to }}</strong></p>
+        <p>{{ t.login_sent_subtext }}</p>
+        <p class="resend">{{ t.login_sent_retry }}
+            <a href="{{ url_for('auth.login') }}">{{ t.login_sent_retry_link }}</a>
+        </p>
     </div>
 
 {% else %}
-    {# ── Login / register form ── #}
-    <h2>⚽ VM Tips</h2>
-    <p class="subtitle">Enter your email to get a login link — no password needed.</p>
+    <h2>⚽ {{ t.app_name }}</h2>
+    <p class="subtitle">{{ t.login_subtitle }}</p>
 
-    <form method="POST" id="login-form">
+    <!-- PASSWORD LOGIN -->
+    <form method="POST" id="pw-form">
+        <input type="hidden" name="mode" value="password">
         <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email"
+            <label for="pw-email">{{ t.login_email_label }}</label>
+            <input type="email" id="pw-email" name="email"
                    value="{{ email or '' }}"
                    placeholder="you@example.com"
                    autocomplete="email"
                    required autofocus>
         </div>
-
-        <div class="form-group name-field {% if needs_name %}visible{% endif %}" id="name-field">
-            <label for="name">Your name</label>
-            <input type="text" id="name" name="name"
-                   placeholder="E.g. Jonas"
-                   autocomplete="given-name"
-                   {% if needs_name %}required{% endif %}>
-            <p class="hint">Looks like you're new — just tell us your name and we'll create your account.</p>
+        <div class="form-group" id="pw-field" style="{{ '' if show_password else 'display:none;' }}">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password"
+                   placeholder="Your password"
+                   autocomplete="current-password"
+                   {{ 'required' if show_password else '' }}>
         </div>
-
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px;">
             <input type="checkbox" id="remember" name="remember" style="width:auto; margin:0;"
-                   {% if remember %}checked{% endif %}>
+                   {{ 'checked' if remember }}>
             <label for="remember" style="font-weight:normal; font-size:14px; color:#555; margin:0; cursor:pointer;">
-                Keep me logged in for 6 months
+                {{ t.login_remember }}
             </label>
         </div>
-
-        <button type="submit" class="btn btn-full" id="submit-btn">Send login link</button>
+        <button type="submit" class="btn btn-full" id="pw-submit-btn">Log in</button>
+        <p class="pw-toggle" id="pw-hint" style="{{ '' if show_password else 'display:none;' }}">
+            Forgot your password? <a href="#" id="use-link-btn">Get a login link instead</a>
+        </p>
     </form>
 
-    <div style="margin-top:28px; padding-top:20px; border-top:1px solid #f0f0f0;">
-        <p style="font-size:13px; color:#aaa; margin:0; line-height:1.6;">
-            🔒 <strong>No password needed.</strong> We send a link to your email — click it and you're in.
-            Tick "Keep me logged in" and you won't need to log in again for months.
-        </p>
+    <div class="divider">or</div>
+
+    <!-- MAGIC LINK -->
+    <form method="POST" id="link-form">
+        <input type="hidden" name="mode" value="link">
+        <div class="form-group">
+            <label for="link-email">Get a login link by email</label>
+            <input type="email" id="link-email" name="email"
+                   placeholder="you@example.com"
+                   autocomplete="email"
+                   required>
+        </div>
+
+        <div class="form-group name-field {% if needs_name %}visible{% endif %}" id="name-field">
+            <label for="name">{{ t.login_name_label }}</label>
+            <input type="text" id="name" name="name"
+                   placeholder="{{ t.login_name_placeholder }}"
+                   autocomplete="given-name"
+                   {{ 'required' if needs_name }}>
+            <p class="hint">{{ t.login_name_hint }}</p>
+        </div>
+
+        <button type="submit" class="btn btn-full btn-secondary" id="link-btn">Send login link</button>
+    </form>
+
+    <div style="margin-top:24px; padding-top:16px; border-top:1px solid #f0f0f0;">
+        <p style="font-size:13px; color:#aaa; margin:0; line-height:1.6;">{{ t.login_note }}</p>
     </div>
 {% endif %}
-
 </div>
 
 <script>
-// If server flagged this as a new user, focus the name field
 (function () {
-    var nameField = document.getElementById('name-field');
-    var nameInput = document.getElementById('name');
-    var submitBtn = document.getElementById('submit-btn');
-    if (nameField && nameField.classList.contains('visible')) {
-        if (nameInput && !nameInput.value) nameInput.focus();
-        if (submitBtn) submitBtn.textContent = 'Create account & send link';
+    var pwForm     = document.getElementById('pw-form');
+    var pwField    = document.getElementById('pw-field');
+    var pwInput    = document.getElementById('password');
+    var pwHint     = document.getElementById('pw-hint');
+    var pwEmailEl  = document.getElementById('pw-email');
+    var useLinkBtn = document.getElementById('use-link-btn');
+    var nameField  = document.getElementById('name-field');
+    var nameInput  = document.getElementById('name');
+
+    // If server already told us to show the password field (wrong password attempt), skip the check step
+    var showPw = {{ 'true' if show_password else 'false' }};
+
+    if (!showPw && pwForm) {
+        // Intercept first submit: check if email has a password before actually submitting
+        pwForm.addEventListener('submit', function (e) {
+            if (!pwField.style.display || pwField.style.display === 'none') {
+                e.preventDefault();
+                var email = pwEmailEl.value.trim();
+                if (!email) return;
+
+                var fd = new FormData();
+                fd.append('email', email);
+
+                fetch('/login/check-email', { method: 'POST', body: fd })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.has_password) {
+                            // Show password field and re-submit
+                            pwField.style.display = 'block';
+                            pwHint.style.display  = 'block';
+                            pwInput.required = true;
+                            pwInput.focus();
+                        } else {
+                            // No password — fill the magic link form and submit it
+                            document.getElementById('link-email').value = email;
+                            document.getElementById('link-form').submit();
+                        }
+                    });
+            }
+        });
+    }
+
+    // "Use link instead" — clear and hide password field, fill link form
+    if (useLinkBtn) {
+        useLinkBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.getElementById('link-email').value = pwEmailEl.value;
+            document.getElementById('link-form').submit();
+        });
+    }
+
+    // If name field visible (new user), focus it
+    if (nameField && nameField.classList.contains('visible') && nameInput && !nameInput.value) {
+        nameInput.focus();
     }
 })();
 </script>

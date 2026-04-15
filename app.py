@@ -1,5 +1,5 @@
 """Main Flask application entry point"""
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, session, request
 from flask_mail import Mail
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -49,19 +49,45 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(prediction_bp)
 app.register_blueprint(admin_bp, url_prefix='/backstage')
 
+# Initialize database (safe to call on every startup — creates tables if missing)
+from database.models import init_db
+init_db()
+
 # Apply rate limits to auth endpoints after blueprint registration
 # POST /login  — 3 per email is enforced in service; 10 per IP here
 # GET  /auth/verify — 20 per IP per hour (brute-force protection)
 limiter.limit('10 per hour')(app.view_functions['auth.login'])
 limiter.limit('20 per hour')(app.view_functions['auth.verify'])
 limiter.limit('10 per hour')(app.view_functions['auth.invite'])
+limiter.limit('20 per hour')(app.view_functions['auth.check_email'])
+
+
+@app.context_processor
+def inject_translations():
+    from app.ui.translations import TRANSLATIONS
+    lang = session.get('lang', 'sv')
+    t = TRANSLATIONS[lang]
+    return {'t': t, 'lang': lang}
+
+
+@app.template_filter('country')
+def country_filter(name):
+    """Translate a country name to the current UI language."""
+    from app.ui.translations import TRANSLATIONS
+    lang = session.get('lang', 'sv')
+    return TRANSLATIONS[lang]['countries'].get(name, name)
+
+
+@app.route('/lang/<code>')
+def set_language(code):
+    if code in ('sv', 'en'):
+        session['lang'] = code
+        session.modified = True
+    return redirect(request.referrer or url_for('index'))
 
 
 @app.route('/')
 def index():
-    """Home page - redirect to leaderboard or login"""
-    # TODO: Check if user is logged in
-    # For now, show a simple home page
     return render_template('index.html')
 
 
@@ -72,9 +98,4 @@ def health():
 
 
 if __name__ == '__main__':
-    # Initialize database on first run
-    from database.models import init_db
-    init_db()
-
-    # Run the app
     app.run(host='0.0.0.0', port=5000, debug=True)

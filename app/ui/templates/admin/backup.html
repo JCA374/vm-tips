@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Backup & Restore — Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+.backup-section {
+    margin-bottom: 0;
+}
+.backup-section + .backup-section {
+    border-top: 1px solid #eee;
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+}
+.meta { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
+.restore-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h2>Backup &amp; Restore</h2>
+        <a href="/backstage" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">← Dashboard</a>
+    </div>
+
+    <!-- Export JSON -->
+    <div class="backup-section">
+        <h3>Export predictions (JSON)</h3>
+        <p class="meta">
+            Downloads a JSON file with all <strong>{{ prediction_count }} predictions</strong> from
+            <strong>{{ user_count }} players</strong>. Use this to restore bets if something goes wrong.
+        </p>
+        <a href="/backstage/backup/export-json" class="btn">Download predictions.json</a>
+    </div>
+
+    <!-- Download DB -->
+    <div class="backup-section">
+        <h3>Download full database</h3>
+        <p class="meta">
+            Downloads the raw SQLite database file (<strong>{{ db_size_kb }} KB</strong>).
+            This includes everything — users, predictions, matches, deadlines.
+            Use this for a complete restore by replacing the <code>database/vm_tips.db</code> file on the server.
+        </p>
+        <a href="/backstage/backup/download-db" class="btn btn-secondary">Download vm_tips.db</a>
+    </div>
+
+    <!-- Restore from JSON -->
+    <div class="backup-section">
+        <h3>Restore predictions from JSON</h3>
+        <div class="restore-warning">
+            <strong>Note:</strong> This overwrites existing predictions with data from the file.
+            Users and matches must already exist in the database (users by email, matches by API ID).
+            It does not delete predictions — only updates or creates them.
+        </div>
+        <form method="POST" action="/backstage/backup/restore" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="backup_file">Select backup file (.json)</label>
+                <input type="file" id="backup_file" name="backup_file" accept=".json"
+                       style="width:auto; padding:6px;">
+            </div>
+            <button type="submit" class="btn btn-secondary"
+                    onclick="return confirm('Restore predictions from this file? Existing predictions will be overwritten.')">
+                Restore
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

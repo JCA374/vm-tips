@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Results - VM Tips{% endblock %}
+{% block title %}{{ t.results_title }} — {{ t.app_name }}{% endblock %}
 
 {% set flag_codes = {
     'Algeria': 'dz', 'Argentina': 'ar', 'Australia': 'au', 'Austria': 'at',
@@ -29,6 +29,7 @@
     border-radius: 8px;
     overflow: hidden;
     width: fit-content;
+    max-width: 100%;
 }
 .toggle-btn {
     padding: 10px 28px;
@@ -210,20 +211,36 @@
 .outcome-tag  { display: inline-block; background: #e8e8e8; border-radius: 4px;
                 padding: 1px 5px; font-size: 11px; font-weight: bold;
                 color: #555; margin-left: 4px; }
+
+/* ── Mobile ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .toggle-bar { width: 100%; }
+    .toggle-btn { flex: 1; padding: 10px 12px; font-size: 14px; }
+    .filter-bar { flex-direction: column; }
+    .filter-bar input { min-width: 0; width: 100%; }
+    .match-header { padding: 10px 12px; gap: 8px; }
+    .match-teams { font-size: 13px; }
+    .match-date { display: none; }
+    .preds-table-wrap { padding: 0 10px 10px; }
+    .preds-table { font-size: 13px; }
+    .selector-bar { padding: 8px 10px; }
+    .round-filter { gap: 4px; }
+    .round-btn { font-size: 12px; padding: 4px 10px; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="card">
-    <h2>Everyone's Predictions</h2>
+    <h2>{{ t.results_title }}</h2>
 
     {% if not predictions_by_match %}
-    <p style="color:#aaa; font-style:italic;">No predictions to show yet — results appear after each round's deadline passes.</p>
+    <p style="color:#aaa; font-style:italic;">{{ t.results_empty }}</p>
     {% else %}
 
     <div class="toggle-bar">
-        <button class="toggle-btn" id="btn-user" onclick="switchView('user')">Per User</button>
-        <button class="toggle-btn" id="btn-game" onclick="switchView('game')">Per Game</button>
+        <button class="toggle-btn" id="btn-user" onclick="switchView('user')">{{ t.results_per_user }}</button>
+        <button class="toggle-btn" id="btn-game" onclick="switchView('game')">{{ t.results_per_game }}</button>
     </div>
 
     {# ══════════════════════════════════════════════════════════
@@ -232,7 +249,7 @@
     <div id="view-game" style="display:none;">
         <div class="round-filter" id="gameRoundFilter"></div>
         <div class="filter-bar">
-            <input type="text" id="team-filter" placeholder="🔍  Filter by team…" oninput="filterByTeam(this.value)">
+            <input type="text" id="team-filter" placeholder="{{ t.results_filter_team }}" oninput="filterByTeam(this.value)">
         </div>
         {% for match_id, data in predictions_by_match.items() %}
         {% set m = data.match %}
@@ -242,16 +259,16 @@
             <div class="match-header">
                 <div class="match-teams">
                     {% if hc %}<img src="https://flagcdn.com/20x15/{{ hc }}.png" class="flag-sm">{% endif %}
-                    {{ m.home_team }}
+                    {{ m.home_team | country }}
                     <span style="color:#bbb; font-weight:normal;">vs</span>
                     {% if ac %}<img src="https://flagcdn.com/20x15/{{ ac }}.png" class="flag-sm">{% endif %}
-                    {{ m.away_team }}
+                    {{ m.away_team | country }}
                 </div>
                 <div style="display:flex; align-items:center; gap:12px;">
                     {% if m.finished %}
                     <span class="match-result">{{ m.home_goals }} – {{ m.away_goals }}</span>
                     {% else %}
-                    <span class="match-result pending">Not played</span>
+                    <span class="match-result pending">{{ t.results_not_played }}</span>
                     {% endif %}
                     <span class="match-date local-time" data-utc="{{ m.match_date.strftime('%Y-%m-%dT%H:%M:00Z') }}">{{ m.match_date.strftime('%d %b %H:%M') }}</span>
                     <span class="chevron">▼</span>
@@ -294,11 +311,11 @@
 
         <div class="player-selector" id="playerSelector">
             <div class="selector-bar" id="selectorBar" onclick="toggleDropdown(event)">
-                <span class="selector-hint" id="selectorHint">Select players to compare…</span>
+                <span class="selector-hint" id="selectorHint">{{ t.results_select_players }}</span>
                 <span class="selector-arrow">▼</span>
             </div>
             <div class="selector-dropdown" id="selectorDropdown">
-                <input class="dropdown-search" type="text" placeholder="🔍  Search player…"
+                <input class="dropdown-search" type="text" placeholder="{{ t.results_filter_player }}"
                        oninput="filterDropdown(this.value)" onclick="event.stopPropagation()" autocomplete="off">
                 <div class="dropdown-list" id="dropdownList">
                     {% for entry in users %}
@@ -315,7 +332,7 @@
         <div class="round-filter" id="roundFilter"></div>
 
         <div id="compareArea">
-            <p class="no-players-hint">Select one or more players above to compare their predictions.</p>
+            <p class="no-players-hint">{{ t.results_no_players }}</p>
         </div>
     </div>
 
@@ -327,6 +344,16 @@
 const FLAG_CODES = {
     {% for name, code in flag_codes.items() %}'{{ name }}': '{{ code }}',{% endfor %}
 };
+const COUNTRY_NAMES = {
+    {% for name, translated in t.countries.items() %}'{{ name }}': {{ translated | tojson }},{% endfor %}
+};
+function cn(name) { return COUNTRY_NAMES[name] || name; }
+
+const STR_NOT_PLAYED = {{ t.results_not_played | tojson }};
+const STR_ALL        = {{ t.results_round_all  | tojson }};
+const STR_NO_PLAYERS = {{ t.results_no_players | tojson }};
+const STR_MATCH      = {{ t.results_col_match  | tojson }};
+const STR_RESULT     = {{ t.results_col_result | tojson }};
 
 const MATCHES = [
     {% for match_id, data in predictions_by_match.items() %}
@@ -399,7 +426,7 @@ function buildGameRoundFilter() {
     });
     var bar = document.getElementById('gameRoundFilter');
     if (!bar || orderedRounds.length <= 1) return;
-    var html = '<button class="round-btn active" onclick="setGameRound(\'all\', this)">All</button>';
+    var html = '<button class="round-btn active" onclick="setGameRound(\'all\', this)">' + STR_ALL + '</button>';
     orderedRounds.forEach(function(r) {
         html += '<button class="round-btn" onclick="setGameRound(\'' + r + '\', this)">' + (ROUND_LABELS[r] || r) + '</button>';
     });
@@ -538,7 +565,7 @@ function buildRoundFilter() {
     var bar = document.getElementById('roundFilter');
     if (!bar || orderedRounds.length <= 1) return;  // no filter needed for single round
 
-    var html = '<button class="round-btn active" onclick="setRound(\'all\', this)">All</button>';
+    var html = '<button class="round-btn active" onclick="setRound(\'all\', this)">' + STR_ALL + '</button>';
     orderedRounds.forEach(function(r) {
         var label = ROUND_LABELS[r] || r;
         html += '<button class="round-btn" onclick="setRound(\'' + r + '\', this)">' + label + '</button>';
@@ -583,7 +610,7 @@ function predCell(p, matchFinished) {
 }
 
 function resultCell(m) {
-    if (!m.finished) return '<td class="result-col" style="color:#ccc;">—</td>';
+    if (!m.finished) return '<td class="result-col" style="color:#ccc;">' + STR_NOT_PLAYED + '</td>';
     var score = m.homeGoals + '–' + m.awayGoals;
     return '<td class="result-col">' + score + '</td>';
 }
@@ -591,7 +618,7 @@ function resultCell(m) {
 function renderCompareTable() {
     var area = document.getElementById('compareArea');
     if (selectedUsers.length === 0) {
-        area.innerHTML = '<p class="no-players-hint">Select one or more players above to compare their predictions.</p>';
+        area.innerHTML = '<p class="no-players-hint">' + STR_NO_PLAYERS + '</p>';
         return;
     }
 
@@ -612,8 +639,8 @@ function renderCompareTable() {
 
     // Header
     var html = '<div class="compare-wrap"><table class="compare-table"><thead><tr>';
-    html += '<th class="match-col">Match</th>';
-    html += '<th class="result-col" style="background:#f4f4f4;">Result</th>';
+    html += '<th class="match-col">' + STR_MATCH + '</th>';
+    html += '<th class="result-col" style="background:#f4f4f4;">' + STR_RESULT + '</th>';
     selectedUsers.forEach(function(uid) {
         var user = ALL_USERS.find(function(u) { return u.id === uid; });
         html += '<th class="user-col"><div class="user-col-header">'
@@ -628,9 +655,9 @@ function renderCompareTable() {
     visibleMatches.forEach(function(m) {
         html += '<tr>';
         html += '<td class="match-col">'
-             + flagImg(m.home, '16x12') + ' ' + m.home
+             + flagImg(m.home, '16x12') + ' ' + cn(m.home)
              + ' <span style="color:#bbb">vs</span> '
-             + flagImg(m.away, '16x12') + ' ' + m.away
+             + flagImg(m.away, '16x12') + ' ' + cn(m.away)
              + '</td>';
         html += resultCell(m);
         selectedUsers.forEach(function(uid) {

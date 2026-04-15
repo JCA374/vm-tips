@@ -37,7 +37,7 @@ SESSION_PERMANENT = False  # controlled per-login via "remember me"
 PERMANENT_SESSION_LIFETIME_DAYS = int(os.getenv('PERMANENT_SESSION_LIFETIME_DAYS', 180))
 
 # Security
-MAX_USERS = int(os.getenv('MAX_USERS', 30))
+MAX_USERS = int(os.getenv('MAX_USERS', 50))
 MAGIC_LINK_EXPIRY_HOURS = int(os.getenv('MAGIC_LINK_EXPIRY_HOURS', 24))
 INVITE_LIMIT_PER_USER = 10         # Hidden from UI — do not expose in templates
 INVITE_EXPIRY_DAYS = 7

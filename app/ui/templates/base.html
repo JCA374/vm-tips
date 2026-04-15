@@ -3,8 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}VM Tips{% endblock %}</title>
+    <title>{% block title %}{{ t.app_name }}{% endblock %}</title>
     <style>
+        :root {
+            --pink: #E91E63;
+            --pink-dark: #C2185B;
+            --pink-light: #F06292;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: Arial, sans-serif;
@@ -22,11 +28,15 @@
             color: white;
             padding: 1rem 0;
             margin-bottom: 2rem;
+            border-bottom: 3px solid var(--pink);
         }
         header h1 { padding: 0 20px; }
         nav {
             background-color: #34495e;
             padding: 0.5rem 20px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
         }
         nav a {
             color: white;
@@ -35,9 +45,21 @@
             display: inline-block;
         }
         nav a:hover { background-color: #2c3e50; }
-        .flash-messages {
-            margin: 1rem 0;
+
+        .nav-right {
+            margin-left: auto;
         }
+        .lang-toggle {
+            opacity: 0.75;
+            font-size: 13px;
+            color: white;
+            text-decoration: none;
+            padding: 0.4rem 0.75rem;
+            border-radius: 4px;
+        }
+        .lang-toggle:hover { background-color: #2c3e50; opacity: 1; }
+
+        .flash-messages { margin: 1rem 0; }
         .flash {
             padding: 1rem;
             margin-bottom: 1rem;
@@ -51,6 +73,11 @@
             color: #721c24;
             border-color: #f5c6cb;
         }
+        .flash.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-color: #ffc107;
+        }
         .card {
             background: white;
             padding: 2rem;
@@ -61,15 +88,16 @@
         .btn {
             display: inline-block;
             padding: 10px 20px;
-            background-color: #4CAF50;
+            background-color: var(--pink);
             color: white;
             text-decoration: none;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            transition: background-color 0.15s;
         }
-        .btn:hover { background-color: #45a049; }
+        .btn:hover { background-color: var(--pink-dark); }
         .btn-secondary {
             background-color: #6c757d;
         }
@@ -104,29 +132,47 @@
             display: block;
             margin-top: 10px;
         }
-        .form-group {
-            margin-bottom: 1rem;
+        .form-group { margin-bottom: 1rem; }
+
+        /* ── Mobile ─────────────────────────────────────────── */
+        @media (max-width: 640px) {
+            header { padding: 0.6rem 0; }
+            header h1 { font-size: 1.1rem; padding: 0 12px; }
+            nav { padding: 0 4px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { padding: 0.5rem 0.65rem; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+            .lang-toggle { font-size: 12px; padding: 0.3rem 0.5rem; }
+            .container { padding: 10px; }
+            .card { padding: 1rem; margin-bottom: 0.75rem; }
+            .btn { padding: 10px 16px; font-size: 15px; }
+            table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; font-size: 13px; }
+            th, td { padding: 8px 6px; white-space: nowrap; }
+            h2 { font-size: 1.2rem; }
+            h3 { font-size: 1rem; }
         }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     <header>
-        <h1>VM Tips - World Cup Competition</h1>
+        <h1>{{ t.app_name }}</h1>
     </header>
 
-    {% if session.get('user_id') %}
     <nav>
-        <a href="/">Home</a>
-        <a href="/leaderboard">Leaderboard</a>
-        <a href="/predict">Make Predictions</a>
-        <a href="/results">View Results</a>
+        {% if session.get('user_id') %}
+        <a href="/">{{ t.nav_home }}</a>
+        <a href="/leaderboard">{{ t.nav_leaderboard }}</a>
+        <a href="/predict">{{ t.nav_predictions }}</a>
+        <a href="/results">{{ t.nav_results }}</a>
         {% if session.get('is_admin') %}
-        <a href="/backstage">⚙ Admin</a>
+        <a href="/backstage">⚙ {{ t.nav_admin }}</a>
         {% endif %}
-        <a href="/logout">Logout</a>
+        <a href="/logout">{{ t.nav_logout }}</a>
+        {% endif %}
+        <div class="nav-right">
+            <a href="/lang/{{ t.lang_toggle_code }}" class="lang-toggle">{{ t.lang_toggle }}</a>
+        </div>
     </nav>
-    {% endif %}
 
     <div class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
