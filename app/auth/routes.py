@@ -1,7 +1,7 @@
 """Authentication routes - Login, logout, magic links"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
 from app.auth.service import (
-    send_magic_link, verify_magic_link, check_email_exists,
+    send_magic_link, verify_magic_link,
     send_invite, accept_invite, mark_invite_used,
     user_has_password, login_with_password, set_password,
 )
@@ -31,48 +31,38 @@ def login():
             flash('Please enter your email.', 'error')
             return redirect(url_for('auth.login'))
 
-        # --- Password login path ---
-        if mode == 'password' and password:
+        # --- Password login ---
+        if mode == 'password':
+            if not password:
+                flash('Please enter your password.', 'error')
+                return render_template('auth/login.html', email=email, active_tab='password', remember=remember)
             user = login_with_password(email, password)
             if user:
                 _start_session(user, remember)
                 return redirect(url_for('index'))
-            flash('Wrong password. Try again or use a login link.', 'error')
-            return render_template('auth/login.html', email=email, show_password=True, remember=remember)
+            flash('Wrong email or password.', 'error')
+            return render_template('auth/login.html', email=email, active_tab='password', remember=remember)
 
-        # --- Magic link path ---
+        # --- Magic link (login link tab or register tab) ---
         name = request.form.get('name', '').strip() or None
         result = send_magic_link(email, name=name)
 
         if result['status'] == 'error':
             msg = result.get('message', '')
             if msg == 'new_user':
-                return render_template('auth/login.html', email=email, needs_name=True, remember=remember)
+                # Unknown email on login tab — redirect to register tab with email pre-filled
+                return render_template('auth/login.html', email=email, active_tab='register', remember=remember)
             if msg == 'max_users':
                 flash('This competition is full. Contact Jonas to be added.', 'error')
                 return redirect(url_for('auth.login'))
-            flash(result['message'], 'error')
+            flash(result.get('message', 'Something went wrong.'), 'error')
             return redirect(url_for('auth.login'))
 
         resp = make_response(render_template('auth/login.html', sent_to=email))
         resp.set_cookie('vm_remember', '1' if remember else '0', max_age=600, httponly=True)
         return resp
 
-    # Check if the email from a failed attempt should show password field
     return render_template('auth/login.html')
-
-
-@auth_bp.route('/login/check-email', methods=['POST'])
-def check_email():
-    """
-    AJAX endpoint: given an email, returns whether the user has a password set.
-    Used by the login form to decide which field to show.
-    """
-    from flask import jsonify
-    email = request.form.get('email', '').strip().lower()
-    has_pw = user_has_password(email)
-    exists = bool(check_email_exists(email))
-    return jsonify({'has_password': has_pw, 'exists': exists})
 
 
 @auth_bp.route('/auth/verify')

@@ -59,7 +59,6 @@ init_db()
 limiter.limit('10 per hour')(app.view_functions['auth.login'])
 limiter.limit('20 per hour')(app.view_functions['auth.verify'])
 limiter.limit('10 per hour')(app.view_functions['auth.invite'])
-limiter.limit('20 per hour')(app.view_functions['auth.check_email'])
 
 
 @app.context_processor

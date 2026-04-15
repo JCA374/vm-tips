@@ -1,7 +1,7 @@
 """Authentication service - Magic link generation and verification"""
 import secrets
+import requests as http_requests
 from datetime import datetime, timedelta
-from flask_mail import Message
 from flask import current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from database.models import User, MagicLink, SessionLocal
@@ -119,32 +119,19 @@ def send_magic_link(email, name=None):
 
 
 def _send_email(email, name, token):
-    """Send magic link email using Flask-Mail"""
-    mail = current_app.extensions['mail']
+    """Send magic link email via Brevo HTTP API (port 443, not blocked by hosting)"""
     link = f"{settings.APP_URL}/auth/verify?token={token}"
     first_name = name.split()[0] if name else 'there'
 
-    msg = Message(
+    _brevo_send(
+        to_email=email,
+        to_name=name or email,
         subject='Your VM Tips login link',
-        recipients=[email],
-        body=f"""Hi {first_name}!
-
-Here is your login link for VM Tips:
-
-{link}
-
-The link is valid until you request a new one.
-
-If you didn't request this, you can safely ignore this email.
-
-Cheers,
-VM Tips
-""",
         html=f"""
 <html>
 <body style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; color: #333;">
   <div style="background: #4CAF50; padding: 24px 32px; border-radius: 8px 8px 0 0;">
-    <h1 style="color: white; margin: 0; font-size: 22px;">VM Tips ⚽</h1>
+    <h1 style="color: white; margin: 0; font-size: 22px;">VM Tips</h1>
   </div>
   <div style="background: white; padding: 32px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
     <p style="font-size: 16px;">Hi {first_name}!</p>
@@ -163,9 +150,8 @@ VM Tips
   </div>
 </body>
 </html>
-"""
+""",
     )
-    mail.send(msg)
 
 
 def verify_magic_link(token):
@@ -286,32 +272,19 @@ def mark_invite_used(token):
 
 
 def _send_invite_email(recipient_email, sender_name, token):
-    """Send invite email"""
-    mail = current_app.extensions['mail']
+    """Send invite email via Brevo HTTP API"""
     link = f"{settings.APP_URL}/join?invite={token}"
     sender_first = sender_name.split()[0] if sender_name else 'Someone'
 
-    msg = Message(
+    _brevo_send(
+        to_email=recipient_email,
+        to_name=recipient_email,
         subject=f'{sender_first} invited you to VM Tips!',
-        recipients=[recipient_email],
-        body=f"""Hi!
-
-{sender_first} has invited you to join VM Tips — a World Cup prediction competition.
-
-Click the link below to create your account:
-
-{link}
-
-This invite link expires in {settings.INVITE_EXPIRY_DAYS} days.
-
-See you on the leaderboard!
-VM Tips
-""",
         html=f"""
 <html>
 <body style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; color: #333;">
   <div style="background: #4CAF50; padding: 24px 32px; border-radius: 8px 8px 0 0;">
-    <h1 style="color: white; margin: 0; font-size: 22px;">VM Tips ⚽</h1>
+    <h1 style="color: white; margin: 0; font-size: 22px;">VM Tips</h1>
   </div>
   <div style="background: white; padding: 32px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
     <p style="font-size: 16px;"><strong>{sender_first}</strong> has invited you to join <strong>VM Tips</strong> — a World Cup prediction competition.</p>
@@ -330,9 +303,28 @@ VM Tips
   </div>
 </body>
 </html>
-"""
+""",
     )
-    mail.send(msg)
+
+
+def _brevo_send(to_email, to_name, subject, html):
+    """Send an email via Brevo's HTTP API (avoids SMTP port blocking)."""
+    response = http_requests.post(
+        'https://api.brevo.com/v3/smtp/email',
+        headers={
+            'api-key': settings.MAIL_API_KEY,
+            'Content-Type': 'application/json',
+        },
+        json={
+            'sender': {'name': 'VM Tips', 'email': settings.MAIL_DEFAULT_SENDER},
+            'to': [{'email': to_email, 'name': to_name}],
+            'subject': subject,
+            'htmlContent': html,
+        },
+        timeout=15,
+    )
+    if not response.ok:
+        raise RuntimeError(f'Brevo API error {response.status_code}: {response.text}')
 
 
 def create_user(email, name):

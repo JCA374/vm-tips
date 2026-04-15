@@ -1,207 +1,152 @@
 # Deployment Report — VM Tips
 
-Generated: 2026-04-09
+Generated: 2026-04-15
 
 ---
 
 ## Current State
 
-The application is a Flask web app using:
-- **Gunicorn** as the WSGI server (already in Dockerfile)
-- **SQLite** as the database (file-based, needs persistent disk)
-- **Docker + docker-compose** for containerization (already configured)
-- **Flask-Mail via Brevo** for magic-link emails
+The application is running live at:
+```
+https://storahultsvm.se
+```
+
+Stack:
+- **Flask + Gunicorn** as the WSGI server
+- **SQLite** as the database (persistent volume mounted at `/opt/vm-tips/database/`)
+- **Docker + docker-compose** for containerisation
+- **Nginx** as reverse proxy (port 80/443 → port 5000)
+- **Let's Encrypt / Certbot** for HTTPS (auto-renewing)
+- **Brevo HTTP API** for magic-link emails (NOT SMTP — see note below)
 - **Football-data.org API** for match data
-
-All credentials are already configured in `.env`:
-- SECRET_KEY is set
-- Brevo SMTP credentials are set
-- Football API key is set
+- **DigitalOcean Droplet** (ubuntu-s-1vcpu-1gb-ams3, Amsterdam, ~$6/mo)
 
 ---
 
-## Recommended Deployment: Hetzner VPS + Docker + Nginx
+## Server Details
 
-### Why Hetzner VPS
-
-SQLite is a file-based database. Platforms like Railway, Render, and Fly.io use
-ephemeral filesystems that wipe files on redeploy — the database would be lost.
-A VPS with a persistent mounted volume is the correct fit for this app.
-
-**Hetzner CX22** (~€4/month, located in Germany) is the recommended choice:
-- Persistent disk
-- Full control over the environment
-- Simple Docker-based deploy
-- EU-hosted (GDPR friendly)
+- **Provider**: DigitalOcean
+- **IP**: 178.128.254.166
+- **OS**: Ubuntu 24.04 LTS
+- **Domain**: storahultsvm.se (registered at Strato)
+- **App location**: `/opt/vm-tips/`
+- **Database**: `/opt/vm-tips/database/vm_tips.db`
 
 ---
 
-## Step-by-Step Deployment
+## Known Issues Fixed During Deployment
 
-### 1. Get a domain name
+| Fix | File | Detail |
+|-----|------|--------|
+| `init_db()` not called by gunicorn | `app.py` | Moved out of `__main__` block so tables are created on every startup |
+| Gunicorn `app:app` fails | `wsgi.py` | The `app/` package shadows `app.py` in Python's import system. Created `wsgi.py` as the gunicorn entry point using `importlib` to load `app.py` by file path |
+| Gunicorn bound to `127.0.0.1` | `Dockerfile` | Changed to `0.0.0.0` — nginx sits in front now |
+| SMTP port 587 blocked | `app/auth/service.py` | DigitalOcean blocks outbound SMTP. Switched from Flask-Mail to Brevo HTTP API (port 443) |
 
-Buy a domain (e.g. via Namecheap or Loopia). You will point it at the server IP.
+---
 
-### 2. Create a Hetzner account and spin up a server
+## Email Setup — Important
 
-- Go to hetzner.com/cloud
-- Create a project, add a CX22 server
-- Choose Ubuntu 24.04 LTS
-- Add your SSH key during setup
-- Note the server's public IP
+DigitalOcean blocks outbound SMTP (port 587). The app uses **Brevo's HTTP API** instead.
 
-### 3. Point your domain to the server
-
-In your DNS settings, add an A record:
+Required `.env` key:
 ```
-@ -> <your server IP>
-www -> <your server IP>
+MAIL_API_KEY=xkeysib-...   # from brevo.com > account > SMTP & API > API Keys
 ```
 
-DNS changes take up to 1 hour to propagate.
+This is NOT the same as the SMTP password (`xsmtpsib-...`). Get the API key separately from Brevo's dashboard.
 
-### 4. SSH into the server and install Docker
+---
+
+## Nginx + HTTPS Setup (one-time)
 
 ```bash
-ssh root@<your-server-ip>
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
-apt install -y docker-compose-plugin
-```
+ssh root@178.128.254.166
 
-### 5. Upload the project
-
-Either push to GitHub and clone, or use rsync:
-```bash
-# From your local machine:
-rsync -avz --exclude='.git' --exclude='venv' --exclude='database/' \
-  /home/jonas/Code/sport/vm/ root@<server-ip>:/opt/vm-tips/
-```
-
-### 6. Create the .env file on the server
-
-```bash
-nano /opt/vm-tips/.env
-```
-
-Copy your local `.env` contents and change one line:
-```
-APP_URL=https://yourdomain.com
-```
-
-### 7. Start the app with Docker
-
-```bash
-cd /opt/vm-tips
-mkdir -p database
-docker compose up -d
-```
-
-The app is now running on port 5000 (localhost only, not public yet).
-
-### 8. Install Nginx and set up HTTPS
-
-```bash
 apt install -y nginx certbot python3-certbot-nginx
-```
 
-Create an Nginx config:
-```bash
-nano /etc/nginx/sites-available/vm-tips
-```
-
-```nginx
+cat > /etc/nginx/sites-available/storahultsvm.se << 'EOF'
 server {
-    server_name yourdomain.com www.yourdomain.com;
+    listen 80;
+    server_name storahultsvm.se www.storahultsvm.se;
 
     location / {
-        proxy_pass http://127.0.0.1:5000;
+        proxy_pass http://localhost:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+EOF
+
+ln -s /etc/nginx/sites-available/storahultsvm.se /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+
+certbot --nginx -d storahultsvm.se -d www.storahultsvm.se
 ```
 
+---
+
+## Step-by-Step: Redeploy After Code Changes
+
+From your local machine:
+
 ```bash
-ln -s /etc/nginx/sites-available/vm-tips /etc/nginx/sites-enabled/
-nginx -t
-systemctl reload nginx
+# 1. Upload changed files
+rsync -avz --exclude='.git' --exclude='venv' --exclude='__pycache__' \
+  /home/jonas/Code/sport/vm/ root@178.128.254.166:/opt/vm-tips/
+
+# 2. Rebuild and restart
+ssh root@178.128.254.166 "cd /opt/vm-tips && docker compose down && docker compose up -d --build"
+
+# 3. Check logs
+ssh root@178.128.254.166 "docker compose -f /opt/vm-tips/docker-compose.yml logs --tail=20"
 ```
 
-Get a free HTTPS certificate:
+---
+
+## Admin Setup
+
+First user must be made admin manually:
 ```bash
-certbot --nginx -d yourdomain.com -d www.yourdomain.com
-```
-
-Certbot auto-renews the certificate via a systemd timer — no manual renewal needed.
-
-### 9. Create the admin user
-
-```bash
-# On the server, open a shell in the running container:
-docker exec -it $(docker ps -q) bash
-
-# Or run sqlite3 directly against the mounted database:
 sqlite3 /opt/vm-tips/database/vm_tips.db \
   "UPDATE users SET is_admin = 1 WHERE email = 'jonca374@gmail.com';"
 ```
-
-First register at /register via the web, then run the command above.
-
-### 10. Verify everything works
-
-- Visit https://yourdomain.com — should load the app
-- Visit https://yourdomain.com/health — should return `{"status": "ok"}`
-- Register with your email and confirm the magic link arrives
-- Log in as admin, go to /admin/status, click "Sync Matches Now"
-- Set round deadlines at /admin/deadlines
 
 ---
 
 ## Ongoing Maintenance
 
-### Update the app after code changes
-
-```bash
-cd /opt/vm-tips
-git pull          # if using git on server
-docker compose up -d --build
-```
-
 ### Backup the database
 
 ```bash
-cp /opt/vm-tips/database/vm_tips.db \
-   /opt/vm-tips/database/vm_tips_$(date +%Y%m%d).db
+ssh root@178.128.254.166 "cp /opt/vm-tips/database/vm_tips.db \
+  /opt/vm-tips/database/backup_$(date +%Y%m%d).db"
 ```
 
-Set up a daily cron job for automatic backups:
+### View live logs
+
 ```bash
-crontab -e
-# Add:
-0 2 * * * cp /opt/vm-tips/database/vm_tips.db /opt/vm-tips/database/backup_$(date +\%Y\%m\%d).db
+ssh root@178.128.254.166 "docker compose -f /opt/vm-tips/docker-compose.yml logs -f"
+```
+
+### Restart without rebuilding
+
+```bash
+ssh root@178.128.254.166 "docker compose -f /opt/vm-tips/docker-compose.yml restart"
 ```
 
 ---
 
-## Bugs Fixed Before Deploy
-
-| Fix | File | Detail |
-|-----|------|--------|
-| `init_db()` not called by gunicorn | `app.py` | Moved out of `__main__` block so tables are created on every startup |
-| Gunicorn bound to `0.0.0.0` | `Dockerfile` | Changed to `127.0.0.1` — Nginx is now the only public entry point |
-
----
-
-## Required Credentials Checklist
+## Credentials Checklist
 
 | Item | Status |
 |------|--------|
 | SECRET_KEY | Set in .env |
-| Brevo SMTP credentials | Set in .env |
+| MAIL_API_KEY (Brevo HTTP API) | Set in .env |
 | Football API key | Set in .env |
-| Domain name | Not yet purchased |
-| APP_URL updated to production domain | Not yet done |
-| Hetzner server | Not yet created |
+| APP_URL | https://storahultsvm.se |
+| DigitalOcean droplet | Running |
+| Domain (storahultsvm.se) | Registered at Strato |
+| Nginx + HTTPS | Set up after DNS propagates |
