@@ -5,8 +5,8 @@ from sqlalchemy.orm import relationship, sessionmaker
 from datetime import datetime
 from backend import config
 
-# Rounds that use exact-score betting (QF / SF / Final)
-SCORE_ROUNDS = {'quarter_final', 'semi_final', 'final'}
+# All rounds use 1X2 betting. 1 point per correct prediction.
+SCORE_ROUNDS = set()  # Legacy — no rounds use exact-score betting anymore
 
 Base = declarative_base()
 engine = create_engine(config.SQLALCHEMY_DATABASE_URI)
@@ -86,10 +86,10 @@ class Prediction(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     match_id = Column(Integer, ForeignKey('matches.id'), nullable=False)
 
-    # 1X2 rounds: store '1', 'X', or '2' here (home win / draw / away win)
+    # 1X2: '1' (home win), 'X' (draw), or '2' (away win)
     predicted_outcome = Column(String(1), nullable=True)
 
-    # Exact-score rounds (QF / SF / Final): store goals here
+    # Legacy exact-score fields (no longer used)
     predicted_home_goals = Column(Integer, nullable=True)
     predicted_away_goals = Column(Integer, nullable=True)
 
@@ -104,34 +104,17 @@ class Prediction(Base):
     match = relationship('Match', back_populates='predictions')
 
     def calculate_points(self):
-        """Calculate points based on actual match result"""
+        """Calculate points: 1 point for correct 1X2 prediction."""
         if not self.match.finished:
             return None
+
+        if not self.predicted_outcome:
+            return 0
 
         actual_home = self.match.home_goals
         actual_away = self.match.away_goals
         actual_outcome = 'X' if actual_home == actual_away else ('1' if actual_home > actual_away else '2')
-
-        if self.match.round in SCORE_ROUNDS:
-            # Exact score: max 7 pts
-            if self.predicted_home_goals is None or self.predicted_away_goals is None:
-                return 0
-            points = 0
-            pred_outcome = 'X' if self.predicted_home_goals == self.predicted_away_goals else (
-                '1' if self.predicted_home_goals > self.predicted_away_goals else '2'
-            )
-            if actual_outcome == pred_outcome:
-                points += 3
-            if actual_home == self.predicted_home_goals:
-                points += 2
-            if actual_away == self.predicted_away_goals:
-                points += 2
-            return points
-        else:
-            # 1X2: 3 pts for correct pick
-            if not self.predicted_outcome:
-                return 0
-            return 3 if self.predicted_outcome == actual_outcome else 0
+        return 1 if self.predicted_outcome == actual_outcome else 0
 
     def __repr__(self):
         return f'<Prediction user={self.user_id} match={self.match_id} {self.predicted_home_goals}-{self.predicted_away_goals}>'
@@ -180,10 +163,10 @@ def init_db():
     """Initialize the database - create all tables and run migrations"""
     from sqlalchemy import text
     Base.metadata.create_all(engine)
-    # Migration: add password_hash column if it doesn't exist yet
     with engine.connect() as conn:
-        existing_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
-        if 'password_hash' not in existing_cols:
+        # Migration: add password_hash column if it doesn't exist yet
+        user_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
+        if 'password_hash' not in user_cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
             conn.commit()
 

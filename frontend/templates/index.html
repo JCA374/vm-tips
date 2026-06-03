@@ -34,19 +34,7 @@
 
 <div class="card">
     <h3>{{ t.home_how_title }}</h3>
-    <ol>
-        <li>{{ t.home_how_1 }}</li>
-        <li>{{ t.home_how_2 }}</li>
-        <li>{{ t.home_how_3 }}</li>
-        <li>{{ t.home_how_4 }}
-            <ul>
-                <li>{{ t.home_how_outcome }}</li>
-                <li>{{ t.home_how_home }}</li>
-                <li>{{ t.home_how_away }}</li>
-            </ul>
-        </li>
-        <li>{{ t.home_how_5 }}</li>
-    </ol>
+    <p style="line-height:1.7">{{ t.home_how_text | replace('\n', '<br>') | safe }}</p>
 </div>
 
 <div class="card">

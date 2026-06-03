@@ -5,7 +5,7 @@ from backend.prediction.service import (
     get_all_predictions_for_round, check_deadline_passed,
     calculate_all_scores,
 )
-from backend.models import SessionLocal, RoundDeadline, Match, SCORE_ROUNDS
+from backend.models import SessionLocal, RoundDeadline, Match
 
 prediction_bp = Blueprint('prediction', __name__)
 
@@ -46,29 +46,12 @@ def predict():
         active_round = request.form.get('active_round', '')
 
         for match in all_matches:
-            if match.round in SCORE_ROUNDS:
-                home_key = f'home_{match.id}'
-                away_key = f'away_{match.id}'
-                if home_key in request.form and away_key in request.form:
-                    home_raw = request.form[home_key].strip()
-                    away_raw = request.form[away_key].strip()
-                    if home_raw == '' or away_raw == '':
-                        continue  # user left it blank — skip, don't break
-                    try:
-                        home_goals = int(home_raw)
-                        away_goals = int(away_raw)
-                        result = submit_prediction(user_id, match.id, home_goals=home_goals, away_goals=away_goals)
-                        if result['status'] == 'error':
-                            flash(f"{match.home_team} vs {match.away_team}: {result['message']}", 'error')
-                    except ValueError:
-                        pass
-            else:
-                outcome_key = f'outcome_{match.id}'
-                outcome = request.form.get(outcome_key)
-                if outcome in ('1', 'X', '2'):
-                    result = submit_prediction(user_id, match.id, outcome=outcome)
-                    if result['status'] == 'error':
-                        flash(f"{match.home_team} vs {match.away_team}: {result['message']}", 'error')
+            outcome_key = f'outcome_{match.id}'
+            outcome = request.form.get(outcome_key)
+            if outcome in ('1', 'X', '2'):
+                result = submit_prediction(user_id, match.id, outcome=outcome)
+                if result['status'] == 'error':
+                    flash(f"{match.home_team} vs {match.away_team}: {result['message']}", 'error')
 
         flash('Predictions saved!')
 
@@ -89,12 +72,8 @@ def predict():
             missing = []
             for m in round_matches:
                 pred = pred_map.get(m.id)
-                if m.round in SCORE_ROUNDS:
-                    if not pred or pred.predicted_home_goals is None:
-                        missing.append(m)
-                else:
-                    if not pred or not pred.predicted_outcome:
-                        missing.append(m)
+                if not pred or not pred.predicted_outcome:
+                    missing.append(m)
             if missing:
                 if len(missing) <= 3:
                     names = ', '.join(f"{m.home_team} vs {m.away_team}" for m in missing)
@@ -125,7 +104,7 @@ def predict():
             'matches': round_matches,
             'deadline': deadline,
             'locked': deadline.is_past() if deadline else False,
-            'is_score_round': round_key in SCORE_ROUNDS,
+            'is_knockout': False,
         })
 
     return render_template('prediction/predict.html',

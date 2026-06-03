@@ -1,9 +1,9 @@
 """Prediction service - Manage predictions and calculate scores"""
 from datetime import datetime
-from backend.models import Prediction, Match, User, RoundDeadline, SessionLocal, SCORE_ROUNDS
+from backend.models import Prediction, Match, User, RoundDeadline, SessionLocal
 
 
-def submit_prediction(user_id, match_id, home_goals=None, away_goals=None, outcome=None):
+def submit_prediction(user_id, match_id, outcome=None, home_goals=None, away_goals=None):
     """
     Submit or update a prediction for a match.
     - 1X2 rounds: pass outcome='1'/'X'/'2'
@@ -24,25 +24,17 @@ def submit_prediction(user_id, match_id, home_goals=None, away_goals=None, outco
         if deadline and deadline.is_past():
             return {'status': 'error', 'message': 'Deadline has passed'}
 
-        is_score_round = match.round in SCORE_ROUNDS
-
         existing = db.query(Prediction).filter_by(user_id=user_id, match_id=match_id).first()
 
         if existing:
-            if is_score_round:
-                existing.predicted_home_goals = home_goals
-                existing.predicted_away_goals = away_goals
-            else:
-                existing.predicted_outcome = outcome
+            existing.predicted_outcome = outcome
             existing.updated_at = datetime.utcnow()
             message = 'Prediction updated'
         else:
             prediction = Prediction(
                 user_id=user_id,
                 match_id=match_id,
-                predicted_outcome=None if is_score_round else outcome,
-                predicted_home_goals=home_goals if is_score_round else None,
-                predicted_away_goals=away_goals if is_score_round else None,
+                predicted_outcome=outcome,
             )
             db.add(prediction)
             message = 'Prediction submitted'

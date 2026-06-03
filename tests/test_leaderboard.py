@@ -63,7 +63,7 @@ def test_calculate_all_scores_updates_points():
     # Predict home win (1)
     _create_prediction(user_id, match_id, outcome='1')
 
-    # Finish match with home win 2-0 → correct outcome → 3 pts
+    # Finish match with home win 2-0 → correct outcome → 1 pt
     _finish_match(match_id, home_goals=2, away_goals=0)
 
     result = calculate_all_scores()
@@ -73,7 +73,7 @@ def test_calculate_all_scores_updates_points():
     from backend.models import Prediction, SessionLocal
     db = SessionLocal()
     pred = db.query(Prediction).filter_by(user_id=user_id, match_id=match_id).first()
-    assert pred.points == 3
+    assert pred.points == 1
     db.close()
 
 
@@ -96,28 +96,26 @@ def test_calculate_all_scores_wrong_prediction():
     db.close()
 
 
-def test_calculate_scores_exact_score_round():
-    """Exact score prediction in QF: perfect score = 7pts, correct outcome only = 3pts."""
+def test_calculate_scores_knockout_round():
+    """Knockout round uses same 1X2 scoring: 1pt correct, 0pt wrong."""
     from backend.prediction.service import calculate_all_scores
 
-    user_perfect = _create_user('perfect@test.com', 'Perfect')
-    user_outcome = _create_user('outcome@test.com', 'OutcomeOnly')
+    user_correct = _create_user('perfect@test.com', 'Perfect')
+    user_wrong = _create_user('outcome@test.com', 'Wrong')
     match_id = create_test_match('England', 'France', round_name='quarter_final')
 
-    # Perfect prediction: 2-1
-    _create_prediction(user_perfect, match_id, home_goals=2, away_goals=1)
-    # Correct outcome but wrong score: 3-0 (home win, but goals wrong)
-    _create_prediction(user_outcome, match_id, home_goals=3, away_goals=0)
+    _create_prediction(user_correct, match_id, outcome='1')  # picks home win
+    _create_prediction(user_wrong, match_id, outcome='2')    # picks away win
 
     _finish_match(match_id, home_goals=2, away_goals=1)
     calculate_all_scores()
 
     from backend.models import Prediction, SessionLocal
     db = SessionLocal()
-    pred_perfect = db.query(Prediction).filter_by(user_id=user_perfect, match_id=match_id).first()
-    pred_outcome = db.query(Prediction).filter_by(user_id=user_outcome, match_id=match_id).first()
-    assert pred_perfect.points == 7  # 3 (outcome) + 2 (home) + 2 (away)
-    assert pred_outcome.points == 3  # 3 (outcome) + 0 + 0
+    pred_correct = db.query(Prediction).filter_by(user_id=user_correct, match_id=match_id).first()
+    pred_wrong = db.query(Prediction).filter_by(user_id=user_wrong, match_id=match_id).first()
+    assert pred_correct.points == 1
+    assert pred_wrong.points == 0
     db.close()
 
 
@@ -141,7 +139,7 @@ def test_leaderboard_shows_correct_totals():
     lb = get_leaderboard()
 
     entry = next(e for e in lb if e['user_id'] == user_id)
-    assert entry['total_points'] == 6  # 3 + 3
+    assert entry['total_points'] == 2  # 1 + 1
 
 
 def test_leaderboard_page_recalculates_scores(page):
@@ -163,7 +161,7 @@ def test_leaderboard_page_recalculates_scores(page):
     from backend.models import Prediction, SessionLocal
     db = SessionLocal()
     pred = db.query(Prediction).filter_by(user_id=user_id, match_id=match_id).first()
-    assert pred.points == 3
+    assert pred.points == 1
     db.close()
 
 

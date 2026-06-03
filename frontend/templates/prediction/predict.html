@@ -229,21 +229,6 @@
                     {% if fc %}<img src="https://flagcdn.com/32x24/{{ fc }}.png" alt="{{ match.home_team | country }}">{% endif %}
                 </span>
 
-                {% if round.is_score_round %}
-                {# ── Exact score inputs ── #}
-                <input class="score-input" type="number" name="home_{{ match.id }}"
-                       min="0" max="20"
-                       value="{{ pred.predicted_home_goals if pred and pred.predicted_home_goals is not none else '' }}"
-                       placeholder="0"
-                       {% if disabled %}disabled{% endif %}>
-                <span class="separator">–</span>
-                <input class="score-input" type="number" name="away_{{ match.id }}"
-                       min="0" max="20"
-                       value="{{ pred.predicted_away_goals if pred and pred.predicted_away_goals is not none else '' }}"
-                       placeholder="0"
-                       {% if disabled %}disabled{% endif %}>
-
-                {% else %}
                 {# ── 1 X 2 radio buttons ── #}
                 {% set saved = pred.predicted_outcome if pred else '' %}
                 <div class="ox2-group">
@@ -256,7 +241,6 @@
                     </label>
                     {% endfor %}
                 </div>
-                {% endif %}
 
                 <span class="team-name {% if is_tbd %}tbd{% endif %}">
                     {% set fc = flag_codes.get(match.away_team, '') %}
@@ -271,7 +255,7 @@
                 </span>
                 {% elif is_tbd %}
                 <span class="match-status tbd">TBD</span>
-                {% elif pred and (pred.predicted_outcome or pred.predicted_home_goals is not none) %}
+                {% elif pred and pred.predicted_outcome %}
                 <span class="match-status saved">{{ t.predict_saved }}</span>
                 {% else %}
                 <span class="match-status"></span>

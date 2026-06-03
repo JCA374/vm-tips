@@ -56,7 +56,6 @@ class TestBackendModules:
     def test_import_backend_models(self):
         from backend.models import User, Match, Prediction, RoundDeadline, Invite, MagicLink
         from backend.models import SCORE_ROUNDS, SessionLocal, init_db
-        assert 'quarter_final' in SCORE_ROUNDS
 
     def test_import_backend_extensions(self):
         from backend.extensions import mail, limiter

@@ -286,13 +286,12 @@
                         <td>{{ pred.user.name }}</td>
                         <td>
                             {% if pred.predicted_outcome %}{{ pred.predicted_outcome }}
-                            {% elif pred.predicted_home is not none and pred.predicted_away is not none %}{{ pred.predicted_home }} – {{ pred.predicted_away }}
                             {% else %}<span style="color:#ccc">—</span>{% endif %}
                         </td>
                         {% if m.finished %}<td>
                             {% if pred.points is not none %}
                             {% set p = pred.points %}
-                            <span class="pts-badge {% if p==7 %}pts-max{% elif p==3 %}pts-3{% elif p==0 %}pts-0{% else %}pts-other{% endif %}">{{ p }} pts</span>
+                            <span class="pts-badge {% if p==1 %}pts-max{% elif p==0 %}pts-0{% else %}pts-other{% endif %}">{{ p }}p</span>
                             {% else %}<span style="color:#ccc">—</span>{% endif %}
                         </td>{% endif %}
                     </tr>
@@ -377,15 +376,13 @@ const ALL_USERS = [
     {% endfor %}
 ];
 
-// PREDS[userId][matchId] = { outcome, home, away, pts }
+// PREDS[userId][matchId] = { outcome, pts }
 const PREDS = {
     {% for uid, entry in predictions_by_user.items() %}
     {{ uid }}: {
         {% for pred in entry.predictions %}
         {{ pred.match.id }}: {
             outcome: {{ pred.predicted_outcome | tojson }},
-            home:    {{ pred.predicted_home    | tojson }},
-            away:    {{ pred.predicted_away    | tojson }},
             pts:     {{ pred.points            | tojson }},
         },
         {% endfor %}
@@ -581,12 +578,6 @@ function setRound(round, btn) {
 }
 
 // ── Comparison table helpers ──────────────────────────────────────────────────
-var SCORE_ROUNDS = {'quarter_final': 1, 'semi_final': 1, 'final': 1};
-
-function outcomeFromScore(h, a) {
-    return h > a ? '1' : a > h ? '2' : 'X';
-}
-
 function flagImg(team, size) {
     var code = FLAG_CODES[team];
     if (!code) return '';
@@ -594,16 +585,9 @@ function flagImg(team, size) {
 }
 
 function predCell(p, matchFinished) {
-    if (!p) return '<td><span class="pred-empty">—</span></td>';
+    if (!p || !p.outcome) return '<td><span class="pred-empty">—</span></td>';
 
-    var text;
-    if (p.outcome) {
-        text = p.outcome;
-    } else if (p.home !== null && p.away !== null) {
-        text = p.home + '–' + p.away;
-    } else {
-        return '<td><span class="pred-empty">—</span></td>';
-    }
+    var text = p.outcome;
 
     var cls = matchFinished ? (p.pts > 0 ? 'pred-correct' : 'pred-wrong') : 'pred-open';
     return '<td><span class="pred-pill ' + cls + '">' + text + '</span></td>';

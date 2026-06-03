@@ -39,14 +39,13 @@ def test_submit_1x2_prediction(page, register_and_login):
         assert 'saved' in page.content().lower() or 'prediction' in page.content().lower()
 
 
-def test_1x2_has_no_score_inputs(page, register_and_login):
-    """1X2 rounds must not expose home_/away_ number inputs."""
+def test_group_has_draw_option(page, register_and_login):
+    """Group stage rounds should have 1, X, and 2 options."""
     match_id = create_test_match('Mexico', 'Canada', round_name='group_md2')
     register_and_login('check1x2@test.com', 'Check1X2')
 
     page.goto(f'{BASE_URL}/predict')
-    assert page.locator(f'input[name="home_{match_id}"]').count() == 0
-    assert page.locator(f'input[name="away_{match_id}"]').count() == 0
+    assert page.locator(f'input[name="outcome_{match_id}"][value="X"]').count() > 0
 
 
 def test_1x2_x_option(page, register_and_login):
@@ -67,8 +66,8 @@ def test_1x2_x_option(page, register_and_login):
 
 # ── Exact score betting (QF / SF / Final) ─────────────────────────────────────
 
-def test_submit_score_prediction(page, register_and_login):
-    """Quarter-final match should accept exact score inputs."""
+def test_submit_1x2_knockout(page, register_and_login):
+    """Knockout match should show 1X2 radio buttons and save correctly."""
     match_id = create_test_match('Spain', 'Portugal', round_name='quarter_final')
     register_and_login('submitter@test.com', 'Submitter')
 
@@ -77,34 +76,33 @@ def test_submit_score_prediction(page, register_and_login):
     if tab.count() > 0:
         tab.click()
 
-    home_input = page.locator(f'input[name="home_{match_id}"]')
-    away_input = page.locator(f'input[name="away_{match_id}"]')
-
-    if home_input.count() > 0:
-        home_input.fill('2')
-        away_input.fill('1')
+    label = page.locator(f'#tab-quarter_final label:has(input[name="outcome_{match_id}"][value="1"])')
+    if label.count() > 0:
+        label.click()
         page.locator('#tab-quarter_final button[type=submit]').click()
         assert 'saved' in page.content().lower() or 'prediction' in page.content().lower()
 
 
-def test_score_round_has_no_radio_buttons(page, register_and_login):
-    """Score rounds must not expose 1X2 radio buttons."""
+def test_knockout_has_1x2_options(page, register_and_login):
+    """Knockout rounds should have 1, X, and 2 options like all rounds."""
     match_id = create_test_match('Germany', 'France', round_name='semi_final')
     register_and_login('checkscore@test.com', 'CheckScore')
 
     page.goto(f'{BASE_URL}/predict')
-    assert page.locator(f'input[name="outcome_{match_id}"]').count() == 0
+    assert page.locator(f'input[name="outcome_{match_id}"][value="1"]').count() > 0
+    assert page.locator(f'input[name="outcome_{match_id}"][value="X"]').count() > 0
+    assert page.locator(f'input[name="outcome_{match_id}"][value="2"]').count() > 0
 
 
 # ── Scoring logic ─────────────────────────────────────────────────────────────
 
 def test_1x2_scoring_correct():
-    """Correct 1X2 pick gives 3 points."""
-    from backend.models import Prediction, Match, SCORE_ROUNDS
+    """Correct 1X2 pick gives 1 point."""
+    from backend.models import Prediction, Match
     pred = Prediction(predicted_outcome='1')
     match = Match(round='group_md1', home_goals=2, away_goals=0, finished=True)
     pred.match = match
-    assert pred.calculate_points() == 3
+    assert pred.calculate_points() == 1
 
 
 def test_1x2_scoring_wrong():
@@ -116,31 +114,31 @@ def test_1x2_scoring_wrong():
     assert pred.calculate_points() == 0
 
 
-def test_score_round_correct_score():
-    """Perfect exact score gives 7 points."""
+def test_1x2_scoring_correct_knockout():
+    """Correct 1X2 pick in knockout gives 1 point."""
     from backend.models import Prediction, Match
-    pred = Prediction(predicted_home_goals=2, predicted_away_goals=1)
+    pred = Prediction(predicted_outcome='1')
     match = Match(round='quarter_final', home_goals=2, away_goals=1, finished=True)
     pred.match = match
-    assert pred.calculate_points() == 7
+    assert pred.calculate_points() == 1
 
 
-def test_score_round_correct_outcome_only():
-    """Correct outcome but both goals wrong gives exactly 3 points."""
+def test_1x2_scoring_wrong_knockout():
+    """Wrong 1X2 pick in knockout gives 0 points."""
     from backend.models import Prediction, Match
-    pred = Prediction(predicted_home_goals=3, predicted_away_goals=1)
-    match = Match(round='quarter_final', home_goals=1, away_goals=0, finished=True)
-    pred.match = match
-    assert pred.calculate_points() == 3
-
-
-def test_score_round_wrong_outcome():
-    """Wrong outcome gives 0 points even if a goal count matches."""
-    from backend.models import Prediction, Match
-    pred = Prediction(predicted_home_goals=1, predicted_away_goals=2)
-    match = Match(round='final', home_goals=2, away_goals=1, finished=True)
+    pred = Prediction(predicted_outcome='1')
+    match = Match(round='semi_final', home_goals=0, away_goals=2, finished=True)
     pred.match = match
     assert pred.calculate_points() == 0
+
+
+def test_1x2_draw_prediction():
+    """Correct draw prediction gives 1 point."""
+    from backend.models import Prediction, Match
+    pred = Prediction(predicted_outcome='X')
+    match = Match(round='final', home_goals=2, away_goals=2, finished=True)
+    pred.match = match
+    assert pred.calculate_points() == 1
 
 
 # ── Deadline locking ──────────────────────────────────────────────────────────
