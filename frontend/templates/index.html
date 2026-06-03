@@ -2,6 +2,57 @@
 
 {% block title %}{{ t.app_name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .home-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+    }
+    .invite-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #f0f0f0;
+    }
+    .invite-hint {
+        font-size: 14px;
+        color: #888;
+        margin-bottom: 10px;
+    }
+    .invite-form {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .invite-input {
+        flex: 1;
+        min-width: 0;
+        padding: 9px 12px !important;
+        border: 1.5px solid #ddd !important;
+        border-radius: 6px;
+        font-size: 14px !important;
+        margin: 0 !important;
+    }
+    @media (max-width: 640px) {
+        .home-actions {
+            flex-direction: column;
+        }
+        .home-actions .btn {
+            text-align: center;
+            width: 100%;
+        }
+        .invite-form {
+            flex-direction: column;
+        }
+        .invite-form .btn {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
     <h2>{{ t.home_title }}</h2>
@@ -9,18 +60,17 @@
 
     {% if session.get('user_id') %}
         <p>{{ t.home_welcome_back }}, {{ session.get('user_name') or session.get('user_email') }}!</p>
-        <p>
+        <div class="home-actions">
             <a href="/predict" class="btn">{{ t.home_btn_predict }}</a>
             <a href="/leaderboard" class="btn btn-secondary">{{ t.home_btn_leaderboard }}</a>
-        </p>
+        </div>
 
-        <div style="margin-top:20px; padding-top:20px; border-top:1px solid #f0f0f0;">
-            <p style="font-size:14px; color:#888; margin-bottom:10px;">{{ t.home_invite_hint }}</p>
-            <form method="POST" action="/invite" style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="invite-section">
+            <p class="invite-hint">{{ t.home_invite_hint }}</p>
+            <form method="POST" action="/invite" class="invite-form">
                 <input type="email" name="email" placeholder="{{ t.home_invite_placeholder }}" required
-                       style="flex:1; min-width:200px; padding:9px 12px; border:1.5px solid #ddd;
-                              border-radius:6px; font-size:14px;">
-                <button type="submit" class="btn btn-secondary" style="padding:9px 18px; font-size:14px;">
+                       class="invite-input">
+                <button type="submit" class="btn btn-secondary btn-sm">
                     {{ t.home_invite_btn }}
                 </button>
             </form>

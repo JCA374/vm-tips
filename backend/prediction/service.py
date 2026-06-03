@@ -131,12 +131,17 @@ def get_leaderboard():
 
         leaderboard = []
         for result in results:
+            pts = result.total_points or 0
             leaderboard.append({
                 'user_id': result.id,
                 'name': result.name,
                 'email': result.email,
-                'total_points': result.total_points or 0
+                'total_points': pts
             })
+
+        # Don't show leaderboard if nobody has any points yet
+        if all(e['total_points'] == 0 for e in leaderboard):
+            return []
 
         return leaderboard
 
