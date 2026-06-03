@@ -2,7 +2,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from backend.prediction.service import (
     get_leaderboard, submit_prediction, get_user_predictions,
-    get_all_predictions_for_round, check_deadline_passed
+    get_all_predictions_for_round, check_deadline_passed,
+    calculate_all_scores,
 )
 from backend.models import SessionLocal, RoundDeadline, Match, SCORE_ROUNDS
 
@@ -23,6 +24,7 @@ ROUNDS = [
 @prediction_bp.route('/leaderboard')
 def leaderboard():
     """Show leaderboard with scores"""
+    calculate_all_scores()
     leaderboard_data = get_leaderboard()
     return render_template('prediction/leaderboard.html', leaderboard=leaderboard_data)
 
@@ -137,6 +139,7 @@ def results():
         flash('Please login to view results.')
         return redirect(url_for('auth.login'))
 
+    calculate_all_scores()
     db = SessionLocal()
     from backend.models import Match, Prediction, User
     from sqlalchemy.orm import joinedload
