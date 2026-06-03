@@ -99,7 +99,7 @@ def test_score_round_has_no_radio_buttons(page, register_and_login):
 
 def test_1x2_scoring_correct():
     """Correct 1X2 pick gives 3 points."""
-    from database.models import Prediction, Match, SCORE_ROUNDS
+    from backend.models import Prediction, Match, SCORE_ROUNDS
     pred = Prediction(predicted_outcome='1')
     match = Match(round='group_md1', home_goals=2, away_goals=0, finished=True)
     pred.match = match
@@ -108,7 +108,7 @@ def test_1x2_scoring_correct():
 
 def test_1x2_scoring_wrong():
     """Wrong 1X2 pick gives 0 points."""
-    from database.models import Prediction, Match
+    from backend.models import Prediction, Match
     pred = Prediction(predicted_outcome='X')
     match = Match(round='group_md1', home_goals=2, away_goals=0, finished=True)
     pred.match = match
@@ -117,7 +117,7 @@ def test_1x2_scoring_wrong():
 
 def test_score_round_correct_score():
     """Perfect exact score gives 7 points."""
-    from database.models import Prediction, Match
+    from backend.models import Prediction, Match
     pred = Prediction(predicted_home_goals=2, predicted_away_goals=1)
     match = Match(round='quarter_final', home_goals=2, away_goals=1, finished=True)
     pred.match = match
@@ -126,7 +126,7 @@ def test_score_round_correct_score():
 
 def test_score_round_correct_outcome_only():
     """Correct outcome but both goals wrong gives exactly 3 points."""
-    from database.models import Prediction, Match
+    from backend.models import Prediction, Match
     pred = Prediction(predicted_home_goals=3, predicted_away_goals=1)
     match = Match(round='quarter_final', home_goals=1, away_goals=0, finished=True)
     pred.match = match
@@ -135,7 +135,7 @@ def test_score_round_correct_outcome_only():
 
 def test_score_round_wrong_outcome():
     """Wrong outcome gives 0 points even if a goal count matches."""
-    from database.models import Prediction, Match
+    from backend.models import Prediction, Match
     pred = Prediction(predicted_home_goals=1, predicted_away_goals=2)
     match = Match(round='final', home_goals=2, away_goals=1, finished=True)
     pred.match = match
@@ -146,7 +146,7 @@ def test_score_round_wrong_outcome():
 
 def test_prediction_locked_after_deadline(page, register_and_login):
     """After all deadlines pass, all prediction inputs should be disabled."""
-    from database.models import RoundDeadline, SessionLocal
+    from backend.models import RoundDeadline, SessionLocal
 
     all_rounds = [
         'group_md1', 'group_md2', 'group_md3',
@@ -188,7 +188,7 @@ def test_results_hidden_before_deadline(page, register_and_login):
 
 
 def test_results_visible_after_deadline(page, register_and_login):
-    from database.models import RoundDeadline, SessionLocal
+    from backend.models import RoundDeadline, SessionLocal
 
     db = SessionLocal()
     existing = db.query(RoundDeadline).filter_by(round='final').first()

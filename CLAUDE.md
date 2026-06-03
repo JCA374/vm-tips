@@ -8,16 +8,19 @@ World Cup Family Competition betting application. Users predict exact scores for
 
 ## Architecture
 
-This codebase follows a **modular architecture** where components are separated into independent modules that can be updated without breaking each other. See REQUIREMENTS.md for full details.
+This codebase follows a **modular architecture** with a clean backend/frontend separation:
+
+- **`backend/`** — All Python business logic (app factory, config, models, blueprints)
+- **`frontend/`** — All presentation (Jinja2 templates, static assets, translations)
+- **`data/`** — Runtime data (SQLite database)
 
 ### Key Modules
 
-1. **Authentication** - Email-based magic link login (no passwords)
-2. **Match Data** - API integration to fetch fixtures and results from official football data source
-3. **Prediction** - User score predictions and points calculation logic
-4. **User Interface** - Forms, leaderboard, and views (public and admin at /admin)
-5. **Database/Storage** - Persistence layer for users, predictions, matches, and scores
-6. **Admin** - User management, deadline management, system status
+1. **Authentication** (`backend/auth/`) - Email-based magic link login + password auth
+2. **Match Data** (`backend/match_data/`) - API integration to fetch fixtures and results from football-data.org
+3. **Prediction** (`backend/prediction/`) - User score predictions and points calculation logic
+4. **Admin** (`backend/admin/`) - User management, deadline management, system status (at /backstage)
+5. **Frontend** (`frontend/`) - Templates, static files, Swedish/English translations
 
 ### Scoring System
 
@@ -48,7 +51,7 @@ cp .env.example .env
 # Edit .env with your credentials
 
 # Run
-python app.py  # Runs on http://localhost:5000
+python run.py  # Runs on http://localhost:5000
 ```
 
 ### Docker Deployment
@@ -66,25 +69,31 @@ docker-compose down
 
 ### Database
 
-- SQLite database: `database/vm_tips.db`
-- Initialize: Run `python app.py` (auto-creates tables)
+- SQLite database: `data/vm_tips.db`
+- Initialize: Run `python run.py` (auto-creates tables)
 - Backup: Copy the .db file
 
 ### Admin Setup
 
 First user must be made admin manually:
 ```bash
-sqlite3 database/vm_tips.db
+sqlite3 data/vm_tips.db
 UPDATE users SET is_admin = 1 WHERE email = 'your-email@example.com';
 ```
 
 ## Key Files
 
-- `app.py` - Main Flask application entry point
-- `database/models.py` - SQLAlchemy models and database schema
-- `config/settings.py` - Configuration from environment variables
-- `app/*/routes.py` - Flask blueprints for each module
-- `app/*/service.py` - Business logic for each module
+- `run.py` - Development entry point
+- `wsgi.py` - Production WSGI entry point (gunicorn)
+- `backend/__init__.py` - Application factory (`create_app()`)
+- `backend/config.py` - Configuration from environment variables
+- `backend/models.py` - SQLAlchemy models and database schema
+- `backend/extensions.py` - Flask extensions (Mail, Limiter)
+- `backend/*/routes.py` - Flask blueprints for each module
+- `backend/*/service.py` - Business logic for each module
+- `frontend/translations.py` - Swedish/English UI translations
+- `frontend/templates/` - Jinja2 HTML templates
+- `frontend/static/` - CSS, JS, images
 
 ## Development Approach
 

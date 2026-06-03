@@ -29,24 +29,19 @@ os.environ.update({
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-import importlib.util
 import pytest
 from werkzeug.serving import make_server
+from backend import create_app
 
 BASE_URL = 'http://localhost:5001'
 
-# Load app.py directly (avoid collision with the app/ package directory)
-_project_root = os.path.dirname(os.path.dirname(__file__))
-_spec = importlib.util.spec_from_file_location('flask_app_module', os.path.join(_project_root, 'app.py'))
-_flask_module = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_flask_module)
-_flask_app = _flask_module.app  # the Flask instance
+_flask_app = create_app()
 
 
 @pytest.fixture(scope='session', autouse=True)
 def flask_server():
     """Start Flask app once for the entire test session."""
-    from database.models import init_db
+    from backend.models import init_db
 
     # Suppress actual email sending
     _flask_app.config['TESTING'] = True
@@ -72,7 +67,7 @@ def base_url():
 
 def get_magic_link_token(email):
     """Fetch the most recent unused magic link token for a user from the DB."""
-    from database.models import MagicLink, User, SessionLocal
+    from backend.models import MagicLink, User, SessionLocal
     db = SessionLocal()
     try:
         user = db.query(User).filter_by(email=email).first()
@@ -91,7 +86,7 @@ def get_magic_link_token(email):
 
 def set_admin(email):
     """Promote a user to admin directly in the DB."""
-    from database.models import User, SessionLocal
+    from backend.models import User, SessionLocal
     db = SessionLocal()
     try:
         user = db.query(User).filter_by(email=email).first()
@@ -106,7 +101,7 @@ def create_test_match(home_team='Brazil', away_team='Argentina',
                       round_name='quarter_final', finished=False,
                       home_goals=None, away_goals=None):
     """Insert a match directly into the DB for testing."""
-    from database.models import Match, SessionLocal
+    from backend.models import Match, SessionLocal
     from datetime import datetime, timedelta
     import random
     db = SessionLocal()

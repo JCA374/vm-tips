@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.predict_title }} — {{ t.app_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 0;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    padding: 10px 18px;
+    border: 2px solid var(--border);
+    border-bottom: none;
+    background: var(--bg);
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: background 0.15s;
+}
+.tab-btn:hover { background: var(--accent-faint); }
+.tab-btn.active {
+    background: var(--card-bg);
+    border-color: var(--accent);
+    color: var(--accent-dark);
+}
+.tab-btn.locked { color: #c0392b; }
+.tab-panel {
+    display: none;
+    background: var(--card-bg);
+    border: 2px solid var(--accent);
+    border-radius: 0 6px 6px 6px;
+    padding: 24px;
+}
+.tab-panel.active { display: block; }
+
+.deadline-badge {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+.deadline-badge.open   { background: #eafbea; color: #27ae60; border: 1px solid #a9dfb6; }
+.deadline-badge.locked { background: #fdecea; color: #c0392b; border: 1px solid #f5c6cb; }
+.deadline-badge.no-deadline { background: #f8f9fa; color: #888; border: 1px solid #ddd; }
+
+.match-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.match-row:last-child { border-bottom: none; }
+.team-name {
+    flex: 1;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    overflow: hidden;
+}
+.team-name.home { justify-content: flex-end; }
+.team-name.tbd  { color: #bbb; font-style: italic; }
+.team-name img  { flex-shrink: 0; }
+.tname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.score-input {
+    width: 56px;
+    text-align: center;
+    padding: 7px 4px;
+    font-size: 1.1em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.score-input:disabled { background: #f8f8f8; color: #aaa; }
+.separator { font-weight: bold; color: #999; font-size: 1.1em; }
+.match-status {
+    font-size: 12px;
+    white-space: nowrap;
+    min-width: 70px;
+    text-align: right;
+}
+.match-status.saved   { color: #27ae60; }
+.match-status.result  { color: #2980b9; }
+.match-status.tbd     { color: #bbb; }
+
+.ox2-group { display: flex; gap: 6px; }
+.ox2-label {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 36px;
+    border: 2px solid #ccc; border-radius: 6px;
+    cursor: pointer; font-weight: bold; font-size: 15px;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+.ox2-label:has(input:checked) { border-color: var(--accent); background: var(--accent-faint); color: var(--accent-dark); }
+.ox2-label:hover:not(.ox2-disabled) { border-color: var(--accent-light); }
+.ox2-label.ox2-disabled { opacity: 0.5; cursor: default; }
+.ox2-label input[type=radio] { display: none; }
+
+/* ── Mobile ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+    /* Scrollable tabs */
+    .tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+        gap: 3px;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+    /* Match row */
+    .tab-panel { padding: 14px 10px; }
+    .match-row { gap: 5px; padding: 10px 0; }
+    .team-name {
+        font-size: 12px;
+        max-width: 90px;
+    }
+    /* Tighter score inputs */
+    .score-input { width: 38px; font-size: 1em; padding: 6px 2px; }
+    /* Smaller 1X2 buttons */
+    .ox2-label { width: 34px; height: 34px; font-size: 14px; }
+    .ox2-group { gap: 4px; }
+    /* Compact status — hide "saved" text, keep result score */
+    .match-status { min-width: 0; font-size: 11px; }
+    .match-status.saved { display: none; }
+    /* Full-width save button */
+    .tab-panel > .btn { width: 100%; margin-top: 16px; }
+    /* Deadline badge */
+    .deadline-badge { font-size: 12px; padding: 4px 10px; }
+}
+</style>
+{% endblock %}
+
+{% set flag_codes = {
+    'Algeria': 'dz', 'Argentina': 'ar', 'Australia': 'au', 'Austria': 'at',
+    'Belgium': 'be', 'Bosnia-Herzegovina': 'ba', 'Brazil': 'br',
+    'Canada': 'ca', 'Cape Verde Islands': 'cv', 'Colombia': 'co',
+    'Congo DR': 'cd', 'Croatia': 'hr', 'Curaçao': 'cw', 'Czechia': 'cz',
+    'Ecuador': 'ec', 'Egypt': 'eg', 'England': 'gb-eng', 'France': 'fr',
+    'Germany': 'de', 'Ghana': 'gh', 'Haiti': 'ht', 'Iran': 'ir',
+    'Iraq': 'iq', 'Ivory Coast': 'ci', 'Japan': 'jp', 'Jordan': 'jo',
+    'Mexico': 'mx', 'Morocco': 'ma', 'Netherlands': 'nl',
+    'New Zealand': 'nz', 'Norway': 'no', 'Panama': 'pa', 'Paraguay': 'py',
+    'Portugal': 'pt', 'Qatar': 'qa', 'Saudi Arabia': 'sa',
+    'Scotland': 'gb-sct', 'Senegal': 'sn', 'South Africa': 'za',
+    'South Korea': 'kr', 'Spain': 'es', 'Sweden': 'se',
+    'Switzerland': 'ch', 'Tunisia': 'tn', 'Turkey': 'tr',
+    'United States': 'us', 'Uruguay': 'uy', 'Uzbekistan': 'uz'
+} %}
+
+{% block content %}
+<div class="card" style="padding-bottom: 8px;">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px;">
+        <h2 style="margin:0;">{{ t.predict_title }}</h2>
+        <span style="font-size:25px; color:#888;">
+            {{ t.nav_logged_in_as }} <strong style="color:var(--accent-dark);">{{ session['user_name'].split()[0] }}</strong> &nbsp;·&nbsp;
+            <a href="/logout" style="color:#c0392b; text-decoration:none;">{{ t.nav_not_you }}</a>
+        </span>
+    </div>
+
+    <div class="tabs">
+        {% for round in rounds_data %}
+        <button class="tab-btn {% if loop.first %}active{% endif %} {% if round.locked %}locked{% endif %}"
+                data-tab="tab-{{ round.key }}"
+                type="button">
+            {{ round.label }}
+        </button>
+        {% endfor %}
+    </div>
+
+    <form method="POST">
+    <input type="hidden" name="active_round" id="active_round" value="">
+    {% for round in rounds_data %}
+    <div id="tab-{{ round.key }}" class="tab-panel {% if loop.first %}active{% endif %}">
+
+        {% if round.deadline %}
+            {% if round.locked %}
+            <span class="deadline-badge locked">
+                {{ t.predict_locked }}
+                <span class="local-time" data-utc="{{ round.deadline.deadline.strftime('%Y-%m-%dT%H:%M:00Z') }}">
+                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }}
+                </span>
+            </span>
+            {% else %}
+            <span class="deadline-badge open">
+                {{ t.predict_deadline }}
+                <span class="local-time" data-utc="{{ round.deadline.deadline.strftime('%Y-%m-%dT%H:%M:00Z') }}">
+                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }}
+                </span>
+            </span>
+            {% endif %}
+        {% else %}
+        <span class="deadline-badge no-deadline">{{ t.predict_no_deadline }}</span>
+        {% endif %}
+
+        {% if round.matches %}
+        <div style="margin-top: 8px;">
+            {% set ns = namespace(last_group='') %}
+            {% for match in round.matches %}
+            {% set pred = predictions.get(match.id) %}
+            {% set is_tbd = match.home_team == 'TBD' %}
+            {% set disabled = round.locked or match.finished or is_tbd %}
+
+            {% if match.group and match.group != ns.last_group %}
+            {% set ns.last_group = match.group %}
+            <div style="margin: 14px 0 4px; font-size: 12px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 0.05em;">
+                {{ match.group.replace('GROUP_', 'Group ') }}
+            </div>
+            {% endif %}
+
+            <div class="match-row">
+                <span class="team-name home {% if is_tbd %}tbd{% endif %}">
+                    <span class="tname">{{ match.home_team | country }}</span>
+                    {% set fc = flag_codes.get(match.home_team, '') %}
+                    {% if fc %}<img src="https://flagcdn.com/32x24/{{ fc }}.png" alt="{{ match.home_team | country }}">{% endif %}
+                </span>
+
+                {% if round.is_score_round %}
+                {# ── Exact score inputs ── #}
+                <input class="score-input" type="number" name="home_{{ match.id }}"
+                       min="0" max="20"
+                       value="{{ pred.predicted_home_goals if pred and pred.predicted_home_goals is not none else '' }}"
+                       placeholder="0"
+                       {% if disabled %}disabled{% endif %}>
+                <span class="separator">–</span>
+                <input class="score-input" type="number" name="away_{{ match.id }}"
+                       min="0" max="20"
+                       value="{{ pred.predicted_away_goals if pred and pred.predicted_away_goals is not none else '' }}"
+                       placeholder="0"
+                       {% if disabled %}disabled{% endif %}>
+
+                {% else %}
+                {# ── 1 X 2 radio buttons ── #}
+                {% set saved = pred.predicted_outcome if pred else '' %}
+                <div class="ox2-group">
+                    {% for val, label in [('1', '1'), ('X', 'X'), ('2', '2')] %}
+                    <label class="ox2-label {% if disabled %}ox2-disabled{% endif %}">
+                        <input type="radio" name="outcome_{{ match.id }}" value="{{ val }}"
+                               {% if saved == val %}checked{% endif %}
+                               {% if disabled %}disabled{% endif %}>
+                        {{ label }}
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <span class="team-name {% if is_tbd %}tbd{% endif %}">
+                    {% set fc = flag_codes.get(match.away_team, '') %}
+                    {% if fc %}<img src="https://flagcdn.com/32x24/{{ fc }}.png" alt="{{ match.away_team | country }}">{% endif %}
+                    <span class="tname">{{ match.away_team | country }}</span>
+                </span>
+
+                {% if match.finished %}
+                <span class="match-status result">
+                    {{ match.home_goals }}–{{ match.away_goals }}
+                    {% if pred and pred.points is not none %}({{ pred.points }}p){% endif %}
+                </span>
+                {% elif is_tbd %}
+                <span class="match-status tbd">TBD</span>
+                {% elif pred and (pred.predicted_outcome or pred.predicted_home_goals is not none) %}
+                <span class="match-status saved">{{ t.predict_saved }}</span>
+                {% else %}
+                <span class="match-status"></span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#aaa; font-style:italic; margin-top:12px;">{{ t.predict_no_matches }}</p>
+        {% endif %}
+
+        {% if not round.locked %}
+        <div style="display:flex; align-items:center; gap:16px; margin-top:20px; flex-wrap:wrap;">
+            <button type="submit" class="btn"
+                    onclick="document.getElementById('active_round').value='{{ round.key }}'">
+                {{ t.predict_save }}
+            </button>
+            <span style="font-size:13px; color:#888;">
+                {{ t.nav_logged_in_as }} <strong style="color:var(--accent-dark);">{{ session['user_name'].split()[0] }}</strong> &nbsp;·&nbsp;
+                <a href="/logout" style="color:#c0392b; text-decoration:none;">{{ t.nav_not_you }}</a>
+            </span>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    </form>
+</div>
+
+<script>
+function activateTab(key) {
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+    var btn = document.querySelector('.tab-btn[data-tab="tab-' + key + '"]');
+    var panel = document.getElementById('tab-' + key);
+    if (btn && panel) {
+        btn.classList.add('active');
+        panel.classList.add('active');
+        return true;
+    }
+    return false;
+}
+
+// Restore tab from URL param after save redirect
+(function () {
+    var params = new URLSearchParams(window.location.search);
+    var tab = params.get('tab');
+    if (tab) activateTab(tab);
+})();
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var key = btn.dataset.tab.replace('tab-', '');
+        activateTab(key);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ t.app_name }}{% endblock %}</title>
+    <style>
+        :root {
+            --accent:       #1565C0;
+            --accent-dark:  #0D47A1;
+            --accent-light: #3D90D4;
+            --accent-faint: #D8E8F6;
+            --header-bg:    #0A1C2E;
+            --highlight:    #0097A7;
+            --text:         #1A1A2E;
+            --text-muted:   #4A6070;
+            --bg:           #E2E7EC;
+            --card-bg:      #F4F7FA;
+            --border:       #C4CDD6;
+            --success-bg:   #D0EFF3;
+            --success-text: #00575F;
+            --error-bg:     #FFEBEE;
+            --error-text:   #B71C1C;
+            --warning-bg:   #FFF8E1;
+            --warning-text: #6D4C00;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            font-size: 17px;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--bg);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+
+        /* ── Header ── */
+        header {
+            background: var(--header-bg);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 3px solid var(--highlight);
+        }
+        header .logo { font-size: 25px; line-height: 1; }
+        header h1 { font-size: 21px; font-weight: 700; }
+        header .tagline { font-size: 13px; opacity: .5; text-transform: uppercase; letter-spacing: .7px; margin-top: 2px; }
+
+        /* ── Nav ── */
+        nav {
+            background: var(--header-bg);
+            padding: 0 12px;
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+        }
+        nav a {
+            color: rgba(255,255,255,.82);
+            text-decoration: none;
+            padding: .65rem .9rem;
+            font-size: 17px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -1px;
+            transition: color .15s, background .15s;
+        }
+        nav a:hover { color: white; background: rgba(255,255,255,.06); }
+        nav a.active { color: #00C8DC; border-bottom-color: #00C8DC; }
+        .nav-right { margin-left: auto; }
+        .lang-toggle {
+            font-size: 14px;
+            opacity: .6;
+            color: white;
+            text-decoration: none;
+            padding: .4rem .7rem;
+            align-self: center;
+            border-radius: 4px;
+        }
+        .lang-toggle:hover { opacity: 1; background: rgba(255,255,255,.08); }
+
+        /* ── Flash ── */
+        .flash-messages { margin-bottom: 16px; }
+        .flash {
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            font-size: 17px;
+            background: var(--success-bg);
+            color: var(--success-text);
+            border-left: 4px solid var(--highlight);
+        }
+        .flash.error {
+            background: var(--error-bg);
+            color: var(--error-text);
+            border-left-color: #EF5350;
+        }
+        .flash.warning {
+            background: var(--warning-bg);
+            color: var(--warning-text);
+            border-left-color: #F9A825;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--card-bg);
+            padding: 24px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(10,28,46,.10);
+            border: 1px solid var(--border);
+        }
+        .card h2 {
+            font-size: 25px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--accent-dark);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+        .card h3 {
+            font-size: 21px;
+            font-weight: 700;
+            margin-bottom: 14px;
+            color: var(--accent-dark);
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-block;
+            padding: 10px 22px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: .2px;
+            transition: opacity .15s, transform .1s;
+        }
+        .btn:hover { opacity: .88; transform: translateY(-1px); }
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+        }
+        .btn-secondary:hover { background: var(--accent-faint); transform: none; opacity: 1; }
+        .btn-sm { padding: 6px 14px; font-size: 14px; }
+
+        /* ── Tables ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        th, td {
+            padding: 11px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: var(--accent-dark);
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+        tr:hover { background: var(--accent-faint); }
+
+        /* ── Inputs ── */
+        input[type="text"],
+        input[type="email"],
+        input[type="number"],
+        input[type="datetime-local"] {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 5px 0 15px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            font-size: 17px;
+            color: var(--text);
+            background: white;
+            transition: border-color .15s;
+            outline: none;
+        }
+        input:focus { border-color: var(--accent-light); }
+        label {
+            font-weight: 600;
+            display: block;
+            margin-top: 10px;
+            color: var(--text);
+            font-size: 15px; /* standard 14px + 1 */
+        }
+        .form-group { margin-bottom: 1rem; }
+
+        /* ── Mobile ─────────────────────────────────────────── */
+        @media (max-width: 640px) {
+            header { height: auto; padding: .65rem 12px; }
+            header h1 { font-size: 1.1rem; }
+            header .tagline { display: none; }
+            nav { padding: 0 4px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { padding: .55rem .65rem; font-size: 15px; white-space: nowrap; flex-shrink: 0; }
+            .lang-toggle { font-size: 13px; padding: .3rem .5rem; }
+            .container { padding: 12px 10px; }
+            .card { padding: 1rem; margin-bottom: 12px; }
+            .btn { padding: 10px 16px; font-size: 17px; }
+            table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; font-size: 15px; }
+            th, td { padding: 8px 6px; white-space: nowrap; }
+            h2 { font-size: 21px; }
+            h3 { font-size: 18px; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header>
+        <span class="logo">⚽</span>
+        <div>
+            <h1>{{ t.app_name }}</h1>
+            <div class="tagline">{{ t.tagline }}</div>
+        </div>
+    </header>
+
+    <nav>
+        {% if session.get('user_id') %}
+        <a href="/">{{ t.nav_home }}</a>
+        <a href="/leaderboard">{{ t.nav_leaderboard }}</a>
+        <a href="/predict">{{ t.nav_predictions }}</a>
+        <a href="/results">{{ t.nav_results }}</a>
+        {% if session.get('is_admin') %}
+        <a href="/backstage">⚙ {{ t.nav_admin }}</a>
+        {% endif %}
+        <a href="/auth/set-password">{{ t.nav_set_password }}</a>
+        <div class="nav-right" style="display:flex;align-items:center;gap:4px;">
+            <span style="color:rgba(255,255,255,.55);font-size:14px;padding:.4rem .5rem;">{{ session['user_name'].split()[0] }}</span>
+            <a href="/logout" style="color:#ff6b6b;font-size:14px;padding:.4rem .6rem;border-radius:4px;white-space:nowrap;">{{ t.nav_not_you }}</a>
+            <a href="/lang/{{ t.lang_toggle_code }}" class="lang-toggle">{{ t.lang_toggle }}</a>
+        </div>
+        {% else %}
+        <div class="nav-right">
+            <a href="/lang/{{ t.lang_toggle_code }}" class="lang-toggle">{{ t.lang_toggle }}</a>
+        </div>
+        {% endif %}
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    {% block extra_js %}{% endblock %}
+    <script>
+    // Convert all .local-time elements from UTC to the browser's local timezone
+    (function () {
+        var tz = 'Europe/Stockholm';
+        try { var d = Intl.DateTimeFormat().resolvedOptions().timeZone; if (d) tz = d; } catch(e) {}
+        var fmt = new Intl.DateTimeFormat('sv-SE', {
+            timeZone: tz,
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+            timeZoneName: 'short'
+        });
+        document.querySelectorAll('.local-time').forEach(function (el) {
+            try { el.textContent = fmt.format(new Date(el.dataset.utc)); } catch(e) {}
+        });
+    })();
+    </script>
+</body>
+</html>

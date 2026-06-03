@@ -12,7 +12,7 @@ from datetime import datetime
 
 sys.path.insert(0, '.')
 
-from database.models import SessionLocal, User, Match, Prediction, RoundDeadline, init_db
+from backend.models import SessionLocal, User, Match, Prediction, RoundDeadline, init_db
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -122,12 +122,12 @@ def seed():
 
         # 4. Calculate scores
         print("\n  Calculating scores...")
-        from app.prediction.service import calculate_all_scores
+        from backend.prediction.service import calculate_all_scores
         result = calculate_all_scores()
         print(f"  Updated {result.get('updated', 0)} predictions")
 
         # 5. Print leaderboard preview
-        from app.prediction.service import get_leaderboard
+        from backend.prediction.service import get_leaderboard
         board = get_leaderboard()
         print("\n  ── Leaderboard preview ──────────────────")
         for i, entry in enumerate(board, 1):

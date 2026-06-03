@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ t.verify_btn }} — {{ t.app_name }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 420px; margin: 60px auto; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 16px;">⚽</div>
+    <h2 style="margin-bottom: 8px;">{{ t.verify_welcome }}, {{ user.name.split()[0] }}!</h2>
+    <p style="color: #666; margin-bottom: 32px;">{{ t.verify_subtitle }} {{ t.app_name }}.</p>
+    <form method="POST">
+        <input type="hidden" name="token" value="{{ token }}">
+        <button type="submit" class="btn" style="width: 100%; padding: 14px; font-size: 16px;">
+            {{ t.verify_btn }}
+        </button>
+    </form>
+</div>
+{% endblock %}
