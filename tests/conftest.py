@@ -24,6 +24,7 @@ os.environ.update({
     'MAIL_PASSWORD': '',
     'MAIL_DEFAULT_SENDER': 'test@vmtips.test',
     'FOOTBALL_API_KEY': 'dummy-test-key',
+    'ADMIN_EMAIL': 'testadmin@test.com',
 })
 
 # Add project root to path
@@ -131,17 +132,21 @@ def register_and_login(page):
     Usage: user_page = register_and_login('test@example.com', 'Test User')
     """
     def _login(email, name, admin=False):
-        page.goto(f'{BASE_URL}/register')
-        page.fill('#name', name)
-        page.fill('#email', email)
-        page.click('button[type=submit]')
+        page.goto(f'{BASE_URL}/login')
+        # Switch to the register tab
+        page.click('button.tab-btn[data-tab="register"]')
+        page.fill('#reg-name', name)
+        page.fill('#reg-email', email)
+        page.click('#tab-register button[type=submit]')
 
         if admin:
             set_admin(email)
 
         token = get_magic_link_token(email)
         assert token, f'No magic link token found for {email}'
+        # GET shows the confirm page, POST consumes the token
         page.goto(f'{BASE_URL}/auth/verify?token={token}')
+        page.click('button[type=submit]')
         return page
 
     return _login
