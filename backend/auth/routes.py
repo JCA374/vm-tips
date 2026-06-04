@@ -4,6 +4,7 @@ from backend.auth.service import (
     send_magic_link, verify_magic_link,
     send_invite, accept_invite, mark_invite_used,
     user_has_password, login_with_password, set_password, change_name,
+    create_user_with_password,
 )
 
 auth_bp = Blueprint('auth', __name__)
@@ -180,7 +181,7 @@ def invite():
 
 @auth_bp.route('/join', methods=['GET', 'POST'])
 def join():
-    """Invite landing page — recipient enters their name and gets a magic link."""
+    """Invite landing page — recipient picks name + password, then is logged in."""
     token = request.args.get('invite') or request.form.get('invite_token')
 
     invite_data = accept_invite(token)
@@ -190,11 +191,15 @@ def join():
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
+        password = request.form.get('password', '')
         if not name:
             flash('Please enter your name.', 'error')
             return render_template('auth/join.html', invite=invite_data, token=token)
+        if len(password) < 4:
+            flash('Password must be at least 4 characters.', 'error')
+            return render_template('auth/join.html', invite=invite_data, token=token)
 
-        result = send_magic_link(invite_data['email'], name=name)
+        result = create_user_with_password(invite_data['email'], name, password)
 
         if result['status'] == 'error' and result.get('message') == 'max_users':
             flash('The competition is full right now. Contact Jonas to be added.', 'error')
@@ -205,6 +210,7 @@ def join():
             return render_template('auth/join.html', invite=invite_data, token=token)
 
         mark_invite_used(token)
-        return render_template('auth/join.html', invite=invite_data, sent=True)
+        _start_session(result['user'], remember=True)
+        return redirect(url_for('index'))
 
     return render_template('auth/join.html', invite=invite_data, token=token)

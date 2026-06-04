@@ -145,10 +145,9 @@ TRANSLATIONS = {
         'join_subtitle': 'har bjudit in dig till Stora Hults VM Tips — ett tipstävling för VM 2026.',
         'join_name_label': 'Vad heter du?',
         'join_name_placeholder': 'T.ex. Anna',
+        'join_password_label': 'Välj ett lösenord',
+        'join_password_placeholder': 'Minst 4 tecken',
         'join_btn': 'Gå med i tävlingen',
-        'join_sent_title': 'Nästan klar!',
-        'join_sent_text': 'Vi skickade en inloggningslänk till',
-        'join_sent_subtext': 'Klicka på länken för att komma in i tävlingen.',
 
         # Predict
         'predict_title': 'Tippa matcher',
@@ -275,10 +274,9 @@ TRANSLATIONS = {
         'join_subtitle': 'invited you to Stora Hults VM Tips — a World Cup 2026 prediction competition.',
         'join_name_label': 'What\'s your name?',
         'join_name_placeholder': 'E.g. Anna',
+        'join_password_label': 'Choose a password',
+        'join_password_placeholder': 'At least 4 characters',
         'join_btn': 'Join the competition',
-        'join_sent_title': 'Almost there!',
-        'join_sent_text': 'We sent a login link to',
-        'join_sent_subtext': 'Click it to enter the competition.',
 
         # Predict
         'predict_title': 'Make Your Predictions',

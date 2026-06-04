@@ -25,18 +25,6 @@
 
 {% block content %}
 <div class="card join-card">
-
-{% if sent %}
-    <div class="icon">📬</div>
-    <h2>{{ t.join_sent_title }}</h2>
-    <p style="color:#555; font-size:15px; line-height:1.6;">
-        {{ t.join_sent_text }} <strong>{{ invite.email }}</strong>.<br>
-        {{ t.join_sent_subtext }}
-    </p>
-    <p style="margin-top:20px;">
-        <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">{{ t.login_title }}</a>
-    </p>
-{% else %}
     <div class="icon">⚽</div>
     <h2>{{ t.join_title }}</h2>
     <p class="subtitle"><strong>{{ invite.sender_name.split()[0] }}</strong> {{ t.join_subtitle }}</p>
@@ -50,9 +38,15 @@
                    autocomplete="given-name"
                    required autofocus>
         </div>
+        <div class="form-group">
+            <label for="password">{{ t.join_password_label }}</label>
+            <input type="password" id="password" name="password"
+                   placeholder="{{ t.join_password_placeholder }}"
+                   autocomplete="new-password"
+                   minlength="4"
+                   required>
+        </div>
         <button type="submit" class="btn btn-full">{{ t.join_btn }}</button>
     </form>
-{% endif %}
-
 </div>
 {% endblock %}

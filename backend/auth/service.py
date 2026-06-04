@@ -372,17 +372,37 @@ def _brevo_send(to_email, to_name, subject, html):
         raise RuntimeError(f'Brevo API error {response.status_code}: {response.text}')
 
 
-def create_user(email, name):
-    """Create a new user (kept for compatibility)"""
+def create_user_with_password(email, name, password):
+    """
+    Create a new user with a password already set.
+    Returns user dict on success, or {'status': 'error', 'message': str}.
+    """
     db = SessionLocal()
     try:
+        email = email.lower().strip()
         existing = db.query(User).filter_by(email=email).first()
         if existing:
             return {'status': 'error', 'message': 'User already exists'}
-        user = User(email=email, name=name)
+        user_count = db.query(User).count()
+        if user_count >= config.MAX_USERS:
+            return {'status': 'error', 'message': 'max_users'}
+        user = User(
+            email=email,
+            name=name.strip(),
+            password_hash=generate_password_hash(password),
+        )
         db.add(user)
         db.commit()
-        return {'status': 'success', 'user': user}
+        db.refresh(user)
+        return {
+            'status': 'success',
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'name': user.name,
+                'is_admin': user.is_admin,
+            },
+        }
     except Exception as e:
         db.rollback()
         return {'status': 'error', 'message': str(e)}
