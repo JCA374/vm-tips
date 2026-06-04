@@ -139,10 +139,6 @@ def get_leaderboard():
                 'total_points': pts
             })
 
-        # Don't show leaderboard if nobody has any points yet
-        if all(e['total_points'] == 0 for e in leaderboard):
-            return []
-
         return leaderboard
 
     finally:
