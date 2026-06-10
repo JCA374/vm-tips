@@ -124,6 +124,11 @@ def test_update_prediction_changes_outcome():
     assert result['status'] == 'success'
     assert result['message'] == 'Prediction submitted'
 
+    # Re-submit same value — should be unchanged
+    result = submit_prediction(user_id, match_id, outcome='1')
+    assert result['status'] == 'success'
+    assert result['message'] == 'Prediction unchanged'
+
     # Change to X
     result = submit_prediction(user_id, match_id, outcome='X')
     assert result['status'] == 'success'

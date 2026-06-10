@@ -46,7 +46,11 @@ def predict():
         user_id = session['user_id']
         active_round = request.form.get('active_round', '')
 
-        for match in all_matches:
+        # Only process matches from the active round to avoid
+        # re-submitting unchanged predictions from other tabs
+        round_matches = [m for m in all_matches if m.round == active_round] if active_round else all_matches
+
+        for match in round_matches:
             outcome_key = f'outcome_{match.id}'
             outcome = request.form.get(outcome_key)
             if outcome in ('1', 'X', '2'):

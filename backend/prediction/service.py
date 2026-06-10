@@ -27,6 +27,8 @@ def submit_prediction(user_id, match_id, outcome=None, home_goals=None, away_goa
         existing = db.query(Prediction).filter_by(user_id=user_id, match_id=match_id).first()
 
         if existing:
+            if existing.predicted_outcome == outcome:
+                return {'status': 'success', 'message': 'Prediction unchanged'}
             existing.predicted_outcome = outcome
             existing.updated_at = datetime.utcnow()
             message = 'Prediction updated'
