@@ -231,6 +231,139 @@ def test_submit_prediction_nonexistent_match():
     assert 'not found' in result['message'].lower()
 
 
+# ── Regular time logic for knockout ──────────────────────────────────────────
+
+def test_sync_knockout_uses_regular_time():
+    """Knockout matches should use regularTime scores, not fullTime (which includes extra time)."""
+    from backend.match_data.service import sync_matches, KNOCKOUT_STAGES
+    from backend.models import Match, SessionLocal
+    from unittest.mock import patch, MagicMock
+
+    # Simulate API response: a QF match that went to extra time
+    # Regular time: 1-1 (draw), Full time: 2-1 (home win after ET)
+    fake_api_response = {
+        'matches': [{
+            'id': 888001,
+            'stage': 'QUARTER_FINALS',
+            'matchday': None,
+            'homeTeam': {'name': 'TestHome'},
+            'awayTeam': {'name': 'TestAway'},
+            'group': None,
+            'utcDate': '2026-07-10T20:00:00Z',
+            'status': 'FINISHED',
+            'score': {
+                'fullTime': {'home': 2, 'away': 1},
+                'regularTime': {'home': 1, 'away': 1},
+            },
+        }]
+    }
+
+    with patch('backend.match_data.service.FootballAPIClient') as MockClient:
+        instance = MockClient.return_value
+        instance.get_competition_matches.return_value = fake_api_response
+        result = sync_matches()
+
+    assert result['status'] == 'success'
+
+    db = SessionLocal()
+    match = db.query(Match).filter_by(external_id=888001).first()
+    assert match is not None
+    # Should use regularTime (1-1), NOT fullTime (2-1)
+    assert match.home_goals == 1
+    assert match.away_goals == 1
+    db.delete(match)
+    db.commit()
+    db.close()
+
+
+def test_sync_group_uses_full_time():
+    """Group stage matches should use fullTime scores (no extra time possible)."""
+    from backend.match_data.service import sync_matches
+    from backend.models import Match, SessionLocal
+    from unittest.mock import patch
+
+    fake_api_response = {
+        'matches': [{
+            'id': 888002,
+            'stage': 'GROUP_STAGE',
+            'matchday': 1,
+            'homeTeam': {'name': 'GroupHome'},
+            'awayTeam': {'name': 'GroupAway'},
+            'group': 'GROUP_A',
+            'utcDate': '2026-06-11T19:00:00Z',
+            'status': 'FINISHED',
+            'score': {
+                'fullTime': {'home': 3, 'away': 0},
+                'regularTime': None,
+            },
+        }]
+    }
+
+    with patch('backend.match_data.service.FootballAPIClient') as MockClient:
+        instance = MockClient.return_value
+        instance.get_competition_matches.return_value = fake_api_response
+        result = sync_matches()
+
+    assert result['status'] == 'success'
+
+    db = SessionLocal()
+    match = db.query(Match).filter_by(external_id=888002).first()
+    assert match is not None
+    assert match.home_goals == 3
+    assert match.away_goals == 0
+    db.delete(match)
+    db.commit()
+    db.close()
+
+
+def test_update_results_knockout_uses_regular_time():
+    """update_match_results should use regularTime for knockout matches."""
+    from backend.match_data.service import update_match_results
+    from backend.models import Match, SessionLocal
+    from unittest.mock import patch
+
+    # Create an unfinished knockout match
+    db = SessionLocal()
+    match = Match(
+        external_id=888003,
+        round='semi_final',
+        home_team='SemiHome',
+        away_team='SemiAway',
+        match_date=datetime.utcnow(),
+        finished=False,
+    )
+    db.add(match)
+    db.commit()
+    match_id = match.id
+    db.close()
+
+    fake_match_response = {
+        'match': {
+            'status': 'FINISHED',
+            'stage': 'SEMI_FINALS',
+            'score': {
+                'fullTime': {'home': 3, 'away': 2},
+                'regularTime': {'home': 2, 'away': 2},
+            },
+        }
+    }
+
+    with patch('backend.match_data.service.FootballAPIClient') as MockClient:
+        instance = MockClient.return_value
+        instance.get_match_by_id.return_value = fake_match_response
+        update_match_results()
+
+    db = SessionLocal()
+    match = db.query(Match).filter_by(id=match_id).first()
+    # Should be 2-2 (regular time), not 3-2 (full time with ET)
+    assert match.home_goals == 2
+    assert match.away_goals == 2
+    assert match.finished is True
+    db.delete(match)
+    db.commit()
+    db.close()
+
+
 # ── Scoring logic ─────────────────────────────────────────────────────────────
 
 def test_1x2_scoring_correct():

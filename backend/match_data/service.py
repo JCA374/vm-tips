@@ -92,8 +92,20 @@ def sync_matches(competition_id=2000):
 
             status = match_data['status']
             finished = status in ['FINISHED', 'AWARDED']
-            home_goals = match_data['score']['fullTime']['home'] if finished else None
-            away_goals = match_data['score']['fullTime']['away'] if finished else None
+
+            if finished:
+                score = match_data['score']
+                # Knockout matches: use regularTime (90 min) so extra time
+                # and penalties don't affect 1X2 outcome
+                if stage in KNOCKOUT_STAGES and score.get('regularTime', {}).get('home') is not None:
+                    home_goals = score['regularTime']['home']
+                    away_goals = score['regularTime']['away']
+                else:
+                    home_goals = score['fullTime']['home']
+                    away_goals = score['fullTime']['away']
+            else:
+                home_goals = None
+                away_goals = None
 
             existing = db.query(Match).filter_by(external_id=external_id).first()
 
@@ -177,8 +189,16 @@ def update_match_results():
                 status = match_info['status']
 
                 if status in ['FINISHED', 'AWARDED']:
-                    match.home_goals = match_info['score']['fullTime']['home']
-                    match.away_goals = match_info['score']['fullTime']['away']
+                    score = match_info['score']
+                    stage = match_info.get('stage', '')
+                    # Knockout: use regularTime (90 min) so extra time/penalties
+                    # don't affect 1X2 outcome
+                    if stage in KNOCKOUT_STAGES and score.get('regularTime', {}).get('home') is not None:
+                        match.home_goals = score['regularTime']['home']
+                        match.away_goals = score['regularTime']['away']
+                    else:
+                        match.home_goals = score['fullTime']['home']
+                        match.away_goals = score['fullTime']['away']
                     match.finished = True
                     match.updated_at = datetime.utcnow()
                     updated += 1
