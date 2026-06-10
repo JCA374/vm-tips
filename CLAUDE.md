@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-World Cup Family Competition betting application. Users predict exact scores for knockout round matches, earn points for correct predictions, and compete on a leaderboard.
+World Cup 2026 Family Competition betting application. Users predict match outcomes (1X2) and compete on a leaderboard.
 
 ## Architecture
 
@@ -24,16 +24,20 @@ This codebase follows a **modular architecture** with a clean backend/frontend s
 
 ### Scoring System
 
-Points awarded for each prediction:
-- Correct outcome (win/loss/tie)
-- Correct home team goals
-- Correct away team goals
+All rounds use **1X2 prediction** (home win / draw / away win). 1 point per correct prediction.
+
+**Semi-finals and Final:** These matches also require predicting the **number of goals scored in regular time** (90 minutes). The 1X2 outcome is based on the regular-time result, not extra time or penalties. A match that is 1-1 after 90 minutes counts as X (draw), regardless of what happens in extra time.
+
+### Rounds
+
+`group_md1`, `group_md2`, `group_md3`, `round_of_32`, `round_of_16`, `quarter_final`, `semi_final`, `third_place`, `final`
 
 ### Critical Rules
 
 - Users can only update predictions before round deadline
 - Other users' predictions only visible after deadline passes
-- Matches and results fetched automatically from external API (not manual admin input)
+- Matches and results fetched automatically from football-data.org API (competition ID 2000)
+- Semi-finals and final use regular-time (90 min) scores only — not extra time or penalties
 - All modules must have clear interfaces to allow independent updates
 
 ## Development Commands
