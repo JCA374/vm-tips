@@ -43,7 +43,7 @@ class FootballAPIClient:
             return None
 
 
-KNOCKOUT_STAGES = {'LAST_32', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'FINAL'}
+KNOCKOUT_STAGES = {'LAST_32', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'THIRD_PLACE', 'FINAL'}
 
 def map_stage_to_round(stage_name, matchday=None):
     """Map API stage name (+ matchday) to our round names"""
@@ -54,6 +54,7 @@ def map_stage_to_round(stage_name, matchday=None):
         'LAST_16': 'round_of_16',
         'QUARTER_FINALS': 'quarter_final',
         'SEMI_FINALS': 'semi_final',
+        'THIRD_PLACE': 'third_place',
         'FINAL': 'final',
     }
     return mapping.get(stage_name)
