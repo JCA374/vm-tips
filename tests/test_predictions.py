@@ -4,6 +4,20 @@ from datetime import datetime, timedelta
 from conftest import BASE_URL, create_test_match
 
 
+def _create_user(email, name):
+    """Create a user directly in the DB, return user id."""
+    from backend.models import User, SessionLocal
+    db = SessionLocal()
+    try:
+        user = User(email=email, name=name)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user.id
+    finally:
+        db.close()
+
+
 def test_predict_requires_login(page):
     page.goto(f'{BASE_URL}/predict')
     assert '/login' in page.url
@@ -92,6 +106,35 @@ def test_knockout_has_1x2_options(page, register_and_login):
     assert page.locator(f'input[name="outcome_{match_id}"][value="1"]').count() > 0
     assert page.locator(f'input[name="outcome_{match_id}"][value="X"]').count() > 0
     assert page.locator(f'input[name="outcome_{match_id}"][value="2"]').count() > 0
+
+
+# ── Updating predictions ─────────────────────────────────────────────────────
+
+def test_update_prediction_changes_outcome():
+    """Changing 1X2 on an already saved prediction should update it, not create a duplicate."""
+    from backend.prediction.service import submit_prediction
+    from backend.models import Prediction, SessionLocal
+    from conftest import create_test_match
+
+    match_id = create_test_match('Chile', 'Peru', round_name='group_md1')
+    user_id = _create_user('updater@test.com', 'Updater')
+
+    # Submit initial prediction
+    result = submit_prediction(user_id, match_id, outcome='1')
+    assert result['status'] == 'success'
+    assert result['message'] == 'Prediction submitted'
+
+    # Change to X
+    result = submit_prediction(user_id, match_id, outcome='X')
+    assert result['status'] == 'success'
+    assert result['message'] == 'Prediction updated'
+
+    # Verify only one prediction exists and it has the new value
+    db = SessionLocal()
+    preds = db.query(Prediction).filter_by(user_id=user_id, match_id=match_id).all()
+    assert len(preds) == 1
+    assert preds[0].predicted_outcome == 'X'
+    db.close()
 
 
 # ── Scoring logic ─────────────────────────────────────────────────────────────
