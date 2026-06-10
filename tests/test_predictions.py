@@ -141,6 +141,42 @@ def test_1x2_draw_prediction():
     assert pred.calculate_points() == 1
 
 
+def test_1x2_scoring_third_place():
+    """Third place match uses same 1X2 scoring."""
+    from backend.models import Prediction, Match
+    pred = Prediction(predicted_outcome='2')
+    match = Match(round='third_place', home_goals=1, away_goals=3, finished=True)
+    pred.match = match
+    assert pred.calculate_points() == 1
+
+
+# ── Stage mapping ────────────────────────────────────────────────────────────
+
+def test_map_stage_to_round_group_stages():
+    """Group stage maps to group_md1/2/3 based on matchday."""
+    from backend.match_data.service import map_stage_to_round
+    assert map_stage_to_round('GROUP_STAGE', 1) == 'group_md1'
+    assert map_stage_to_round('GROUP_STAGE', 2) == 'group_md2'
+    assert map_stage_to_round('GROUP_STAGE', 3) == 'group_md3'
+
+
+def test_map_stage_to_round_knockout():
+    """All knockout stages map to expected round names."""
+    from backend.match_data.service import map_stage_to_round
+    assert map_stage_to_round('LAST_32') == 'round_of_32'
+    assert map_stage_to_round('LAST_16') == 'round_of_16'
+    assert map_stage_to_round('QUARTER_FINALS') == 'quarter_final'
+    assert map_stage_to_round('SEMI_FINALS') == 'semi_final'
+    assert map_stage_to_round('THIRD_PLACE') == 'third_place'
+    assert map_stage_to_round('FINAL') == 'final'
+
+
+def test_map_stage_to_round_unknown():
+    """Unknown stage returns None."""
+    from backend.match_data.service import map_stage_to_round
+    assert map_stage_to_round('MADE_UP_STAGE') is None
+
+
 # ── Deadline locking ──────────────────────────────────────────────────────────
 
 def test_prediction_locked_after_deadline(page, register_and_login):
@@ -149,7 +185,7 @@ def test_prediction_locked_after_deadline(page, register_and_login):
 
     all_rounds = [
         'group_md1', 'group_md2', 'group_md3',
-        'round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'final'
+        'round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final'
     ]
     db = SessionLocal()
     past = datetime.utcnow() - timedelta(hours=1)

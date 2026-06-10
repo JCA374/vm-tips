@@ -17,6 +17,7 @@ ROUNDS = [
     ('round_of_16', 'Round of 16'),
     ('quarter_final', 'Quarter Finals'),
     ('semi_final',  'Semi Finals'),
+    ('third_place', 'Third Place'),
     ('final',       'Final'),
 ]
 
