@@ -113,8 +113,14 @@ def test_knockout_has_1x2_options(page, register_and_login):
 def test_update_prediction_changes_outcome():
     """Changing 1X2 on an already saved prediction should update it, not create a duplicate."""
     from backend.prediction.service import submit_prediction
-    from backend.models import Prediction, SessionLocal
+    from backend.models import Prediction, RoundDeadline, SessionLocal
     from conftest import create_test_match
+
+    # Clean up any leftover deadline from other tests (e.g. test_prediction_locked_after_deadline)
+    db = SessionLocal()
+    db.query(RoundDeadline).filter_by(round='group_md1').delete()
+    db.commit()
+    db.close()
 
     match_id = create_test_match('Chile', 'Peru', round_name='group_md1')
     user_id = _create_user('updater@test.com', 'Updater')
@@ -140,6 +146,89 @@ def test_update_prediction_changes_outcome():
     assert len(preds) == 1
     assert preds[0].predicted_outcome == 'X'
     db.close()
+
+
+# ── Service-level edge cases ──────────────────────────────────────────────────
+
+def test_unchanged_prediction_preserves_timestamp():
+    """Re-submitting the same outcome must NOT update updated_at."""
+    from backend.prediction.service import submit_prediction
+    from backend.models import Prediction, RoundDeadline, SessionLocal
+    from conftest import create_test_match
+    import time
+
+    # Clean up any leftover deadline from other tests
+    db = SessionLocal()
+    db.query(RoundDeadline).filter_by(round='group_md1').delete()
+    db.commit()
+    db.close()
+
+    match_id = create_test_match('Nigeria', 'Egypt', round_name='group_md1')
+    user_id = _create_user('timestamp@test.com', 'Timestamp')
+
+    submit_prediction(user_id, match_id, outcome='2')
+
+    db = SessionLocal()
+    pred = db.query(Prediction).filter_by(user_id=user_id, match_id=match_id).first()
+    original_ts = pred.updated_at
+    db.close()
+
+    time.sleep(0.05)  # ensure clock moves
+    result = submit_prediction(user_id, match_id, outcome='2')
+    assert result['message'] == 'Prediction unchanged'
+
+    db = SessionLocal()
+    pred = db.query(Prediction).filter_by(user_id=user_id, match_id=match_id).first()
+    assert pred.updated_at == original_ts
+    db.close()
+
+
+def test_submit_prediction_rejected_after_deadline():
+    """Predictions should be rejected when the round deadline has passed."""
+    from backend.prediction.service import submit_prediction
+    from backend.models import RoundDeadline, SessionLocal
+    from conftest import create_test_match
+
+    match_id = create_test_match('Japan', 'Belgium', round_name='group_md3')
+    user_id = _create_user('late@test.com', 'Late')
+
+    # Ensure a past deadline exists (may already exist from Playwright tests)
+    db = SessionLocal()
+    existing = db.query(RoundDeadline).filter_by(round='group_md3').first()
+    if existing:
+        existing.deadline = datetime.utcnow() - timedelta(hours=1)
+    else:
+        db.add(RoundDeadline(round='group_md3', deadline=datetime.utcnow() - timedelta(hours=1)))
+    db.commit()
+    db.close()
+
+    result = submit_prediction(user_id, match_id, outcome='1')
+    assert result['status'] == 'error'
+    assert 'deadline' in result['message'].lower()
+
+
+def test_submit_prediction_rejected_for_finished_match():
+    """Predictions should be rejected for already finished matches."""
+    from backend.prediction.service import submit_prediction
+    from conftest import create_test_match
+
+    match_id = create_test_match('Italy', 'Sweden', round_name='group_md1',
+                                 finished=True, home_goals=1, away_goals=0)
+    user_id = _create_user('finished@test.com', 'Finished')
+
+    result = submit_prediction(user_id, match_id, outcome='1')
+    assert result['status'] == 'error'
+    assert 'finished' in result['message'].lower()
+
+
+def test_submit_prediction_nonexistent_match():
+    """Prediction for a non-existent match should return error."""
+    from backend.prediction.service import submit_prediction
+
+    user_id = _create_user('nomatch@test.com', 'NoMatch')
+    result = submit_prediction(user_id, 999999, outcome='1')
+    assert result['status'] == 'error'
+    assert 'not found' in result['message'].lower()
 
 
 # ── Scoring logic ─────────────────────────────────────────────────────────────
