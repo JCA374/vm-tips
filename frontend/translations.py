@@ -61,6 +61,7 @@ TRANSLATIONS = {
 
         # Nav
         'nav_home': 'Hem',
+        'nav_today': 'Idag',
         'nav_leaderboard': 'Topplista',
         'nav_predictions': 'Tippa',
         'nav_results': 'Resultat',
@@ -190,6 +191,7 @@ TRANSLATIONS = {
 
         # Nav
         'nav_home': 'Home',
+        'nav_today': 'Today',
         'nav_leaderboard': 'Leaderboard',
         'nav_predictions': 'Predict',
         'nav_results': 'Results',

@@ -1,11 +1,13 @@
 """Prediction routes - Betting form, leaderboard, results"""
+from datetime import datetime, timezone, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from sqlalchemy.orm import joinedload
 from backend.prediction.service import (
     get_leaderboard, submit_prediction, get_user_predictions,
     get_all_predictions_for_round, check_deadline_passed,
     calculate_all_scores,
 )
-from backend.models import SessionLocal, RoundDeadline, Match
+from backend.models import SessionLocal, RoundDeadline, Match, Prediction, User
 
 prediction_bp = Blueprint('prediction', __name__)
 
@@ -20,6 +22,107 @@ ROUNDS = [
     ('third_place', 'Third Place'),
     ('final',       'Final'),
 ]
+
+
+@prediction_bp.route('/today')
+def today():
+    """Today's matches with everyone's predictions."""
+    if not session.get('user_id'):
+        flash('Please login first.')
+        return redirect(url_for('auth.login'))
+
+    calculate_all_scores()
+    db = SessionLocal()
+
+    # "Today" in North America (UTC-5 / CDT) to match the match-day grouping
+    venue_now = datetime.now(timezone.utc) + timedelta(hours=-5)
+    venue_today = venue_now.date()
+
+    # Allow navigating to other dates via ?date=YYYY-MM-DD
+    date_str = request.args.get('date')
+    from datetime import date as date_type
+    if date_str:
+        try:
+            venue_today = date_type.fromisoformat(date_str)
+        except ValueError:
+            pass
+
+    # Matches whose venue-local date == selected day: UTC range is [day+05:00, next+05:00)
+    day_start_utc = datetime(venue_today.year, venue_today.month, venue_today.day, 5, 0, tzinfo=timezone.utc)
+    day_end_utc = day_start_utc + timedelta(days=1)
+
+    # Find all match days for navigation
+    all_match_dates_raw = [m[0] for m in db.query(Match.match_date).all()]
+    match_days = sorted({(d + timedelta(hours=-5)).date() for d in all_match_dates_raw})
+
+    # Previous and next match day relative to selected date
+    prev_day = None
+    next_day = None
+    for d in match_days:
+        if d < venue_today:
+            prev_day = d
+    for d in match_days:
+        if d > venue_today:
+            next_day = d
+            break
+
+    actual_today = (datetime.now(timezone.utc) + timedelta(hours=-5)).date()
+    is_today = venue_today == actual_today
+
+    matches = (
+        db.query(Match)
+        .filter(Match.match_date >= day_start_utc, Match.match_date < day_end_utc)
+        .order_by(Match.match_date)
+        .all()
+    )
+
+    # Deadlines to check visibility
+    deadlines = {d.round: d for d in db.query(RoundDeadline).all()}
+
+    # All predictions for today's matches
+    match_ids = [m.id for m in matches]
+    all_preds = (
+        db.query(Prediction)
+        .options(joinedload(Prediction.user))
+        .filter(Prediction.match_id.in_(match_ids))
+        .all()
+    ) if match_ids else []
+
+    # All users (for column headers)
+    users = db.query(User).order_by(User.name).all()
+
+    # Build structure: match -> {user_id: prediction}
+    matches_data = []
+    for match in matches:
+        deadline = deadlines.get(match.round)
+        round_locked = deadline.is_past() if deadline else False
+
+        preds_for_match = {p.user_id: p for p in all_preds if p.match_id == match.id}
+
+        matches_data.append({
+            'match': match,
+            'predictions': preds_for_match,
+            'round_locked': round_locked,
+        })
+
+    # Sum points per user for today's finished matches
+    day_points = {}
+    for md in matches_data:
+        if md['match'].finished:
+            for uid, pred in md['predictions'].items():
+                day_points[uid] = day_points.get(uid, 0) + (pred.points or 0)
+
+    db.close()
+
+    return render_template('prediction/today.html',
+                           matches_data=matches_data,
+                           users=users,
+                           venue_date=venue_today,
+                           day_points=day_points,
+                           prev_day=prev_day,
+                           next_day=next_day,
+                           is_today=is_today,
+                           actual_today=actual_today)
 
 
 @prediction_bp.route('/leaderboard')

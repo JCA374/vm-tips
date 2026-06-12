@@ -237,6 +237,7 @@
     <nav>
         {% if session.get('user_id') %}
         <a href="/">{{ t.nav_home }}</a>
+        <a href="/today">{{ t.nav_today }}</a>
         <a href="/leaderboard">{{ t.nav_leaderboard }}</a>
         <a href="/predict">{{ t.nav_predictions }}</a>
         <a href="/results">{{ t.nav_results }}</a>
@@ -284,6 +285,13 @@
         });
         document.querySelectorAll('.local-time').forEach(function (el) {
             try { el.textContent = fmt.format(new Date(el.dataset.utc)); } catch(e) {}
+        });
+        var fmtShort = new Intl.DateTimeFormat('sv-SE', {
+            timeZone: tz,
+            hour: '2-digit', minute: '2-digit'
+        });
+        document.querySelectorAll('.local-time-short').forEach(function (el) {
+            try { el.textContent = fmtShort.format(new Date(el.dataset.utc)); } catch(e) {}
         });
     })();
     </script>
