@@ -28,7 +28,9 @@
     gap: 8px;
     margin-bottom: 16px;
 }
-.today-date { font-size: 15px; color: var(--text-muted); font-weight: 500; }
+.today-date { text-align: right; }
+.today-day { display: block; font-size: 16px; font-weight: 700; color: var(--text); }
+.today-ymd { display: block; font-size: 13px; color: var(--text-muted); }
 
 .today-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .today-table {
@@ -174,8 +176,11 @@
 {% block content %}
 <div class="card">
     <div class="today-header">
-        <h2>{{ t.get('nav_today', 'Idag') }}</h2>
-        <span class="today-date">{{ venue_date.strftime('%Y-%m-%d') }}</span>
+        <h2>{{ t.get('today_title', 'Dagens matcher & tips') }}</h2>
+        <div class="today-date">
+            <span class="today-day" data-date="{{ venue_date.isoformat() }}"></span>
+            <span class="today-ymd">{{ venue_date.strftime('%Y-%m-%d') }}</span>
+        </div>
     </div>
 
     <div class="day-nav">
@@ -282,4 +287,13 @@
 
 
 </div>
+<script>
+(function() {
+    var el = document.querySelector('.today-day');
+    if (!el) return;
+    var days = ['Söndag','Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag'];
+    var d = new Date(el.dataset.date + 'T12:00:00');
+    el.textContent = days[d.getDay()];
+})();
+</script>
 {% endblock %}
