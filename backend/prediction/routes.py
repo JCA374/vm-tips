@@ -112,6 +112,24 @@ def today():
             for uid, pred in md['predictions'].items():
                 day_points[uid] = day_points.get(uid, 0) + (pred.points or 0)
 
+    # Group users by identical tip pattern for color-coding
+    tip_groups = {}  # user_id -> group index (0-based), only for groups with 2+ members
+    if matches_data:
+        sig_map = {}  # signature -> [user_ids]
+        for user in users:
+            sig = tuple(
+                (md['predictions'].get(user.id).predicted_outcome
+                 if md['predictions'].get(user.id) else None)
+                for md in matches_data
+            )
+            sig_map.setdefault(sig, []).append(user.id)
+        color_idx = 0
+        for sig, uids in sig_map.items():
+            if len(uids) >= 2:
+                for uid in uids:
+                    tip_groups[uid] = color_idx
+                color_idx += 1
+
     db.close()
 
     return render_template('prediction/today.html',
@@ -119,6 +137,7 @@ def today():
                            users=users,
                            venue_date=venue_today,
                            day_points=day_points,
+                           tip_groups=tip_groups,
                            prev_day=prev_day,
                            next_day=next_day,
                            is_today=is_today,

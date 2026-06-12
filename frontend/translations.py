@@ -60,7 +60,7 @@ TRANSLATIONS = {
         'tagline': 'VM 2026 · Familjetävling',
 
         # Nav
-        'nav_home': 'Hem',
+        'nav_info': 'Info',
         'nav_today': 'Idag',
         'nav_leaderboard': 'Topplista',
         'nav_predictions': 'Tippa',
@@ -190,7 +190,7 @@ TRANSLATIONS = {
         'tagline': 'World Cup 2026 · Family Competition',
 
         # Nav
-        'nav_home': 'Home',
+        'nav_info': 'Info',
         'nav_today': 'Today',
         'nav_leaderboard': 'Leaderboard',
         'nav_predictions': 'Predict',
