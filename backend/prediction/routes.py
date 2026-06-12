@@ -51,6 +51,10 @@ def today():
     day_start_utc = datetime(venue_today.year, venue_today.month, venue_today.day, 5, 0, tzinfo=timezone.utc)
     day_end_utc = day_start_utc + timedelta(days=1)
 
+    # Deadlines to check visibility — only show matches whose round deadline has passed
+    deadlines = {d.round: d for d in db.query(RoundDeadline).all()}
+    locked_rounds = {r for r, d in deadlines.items() if d.is_past()}
+
     # Find all match days for navigation — only days with locked-round matches
     all_match_dates_raw = [
         m[0] for m in db.query(Match.match_date)
@@ -71,10 +75,6 @@ def today():
 
     actual_today = (datetime.now(timezone.utc) + timedelta(hours=-5)).date()
     is_today = venue_today == actual_today
-
-    # Deadlines to check visibility — only show matches whose round deadline has passed
-    deadlines = {d.round: d for d in db.query(RoundDeadline).all()}
-    locked_rounds = {r for r, d in deadlines.items() if d.is_past()}
 
     matches = (
         db.query(Match)
