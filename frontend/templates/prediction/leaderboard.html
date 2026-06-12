@@ -6,6 +6,7 @@
     <h2>{{ t.leaderboard_title }}</h2>
 
     {% if leaderboard %}
+    {% set ns = namespace(rank=1) %}
     <table>
         <thead>
             <tr>
@@ -16,8 +17,11 @@
         </thead>
         <tbody>
             {% for entry in leaderboard %}
-            <tr>
-                <td>{{ loop.index }}</td>
+            {% if loop.index > 1 and entry.total_points < leaderboard[loop.index - 2].total_points %}
+                {% set ns.rank = loop.index %}
+            {% endif %}
+            <tr {% if ns.rank == 1 %}style="background: var(--accent-faint); font-weight: 700;"{% endif %}>
+                <td>{% if ns.rank <= 3 %}{{ ns.rank }}{% endif %}</td>
                 <td>{{ entry.name }}</td>
                 <td><strong>{{ entry.total_points }}</strong></td>
             </tr>
