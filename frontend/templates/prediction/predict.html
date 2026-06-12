@@ -89,6 +89,7 @@
 .match-status.saved   { color: #27ae60; }
 .match-status.result  { color: #2980b9; }
 .match-status.tbd     { color: #bbb; }
+.points-correct       { color: #27ae60; font-weight: 600; }
 
 .ox2-group { display: flex; gap: 6px; }
 .ox2-label {
@@ -251,14 +252,16 @@
                 {% if match.finished %}
                 <span class="match-status result">
                     {{ match.home_goals }}–{{ match.away_goals }}
-                    {% if pred and pred.points is not none %}({{ pred.points }}p){% endif %}
+                    {% if pred and pred.points is not none %}
+                    <span class="{% if pred.points > 0 %}points-correct{% endif %}">({{ pred.points }}p)</span>
+                    {% endif %}
                 </span>
                 {% elif is_tbd %}
                 <span class="match-status tbd">TBD</span>
                 {% elif pred and pred.predicted_outcome %}
-                <span class="match-status saved">{{ t.predict_saved }}</span>
+                <span class="match-status saved" data-match="{{ match.id }}" data-saved="{{ pred.predicted_outcome }}">{{ t.predict_saved }}</span>
                 {% else %}
-                <span class="match-status"></span>
+                <span class="match-status" data-match="{{ match.id }}"></span>
                 {% endif %}
             </div>
             {% endfor %}
@@ -310,6 +313,21 @@ document.querySelectorAll('.tab-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
         var key = btn.dataset.tab.replace('tab-', '');
         activateTab(key);
+    });
+});
+
+// Hide "Saved" badge when user changes a prediction from its saved value
+document.querySelectorAll('input[type=radio][name^="outcome_"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        var matchId = this.name.replace('outcome_', '');
+        var badge = document.querySelector('.match-status[data-match="' + matchId + '"]');
+        if (!badge) return;
+        var savedVal = badge.dataset.saved || '';
+        if (this.value === savedVal) {
+            badge.style.visibility = '';
+        } else {
+            badge.style.visibility = 'hidden';
+        }
     });
 });
 </script>

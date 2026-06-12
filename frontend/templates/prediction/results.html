@@ -73,9 +73,9 @@
 .preds-table td { padding: 8px 10px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
 .preds-table tr:last-child td { border-bottom: none; }
 .pts-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: bold; }
-.pts-max    { background: #fef9c3; color: #b45309; }
+.pts-max    { background: #eafbea; color: #27ae60; }
 .pts-3      { background: #eafbea; color: #27ae60; }
-.pts-0      { background: #fdecea; color: #c0392b; }
+.pts-0      { background: #f0f0f0; color: #888; }
 .pts-other  { background: #f0f0f0; color: #555; }
 
 /* ── Player selector ── */
@@ -185,6 +185,23 @@
 .user-col-header .col-pts { font-size: 11px; color: #aaa; font-weight: normal; }
 .flag-sm { vertical-align: middle; margin: 0 2px; }
 .no-players-hint { color: #aaa; font-style: italic; font-size: 14px; margin-top: 8px; }
+.date-group-header {
+    font-size: 15px; font-weight: bold; color: #333;
+    padding: 12px 0 6px; margin-top: 10px;
+    border-bottom: 2px solid #e8e8e8;
+    display: flex; align-items: center; gap: 8px;
+}
+.date-group-header.today { color: #856404; border-bottom-color: #f0c040; }
+.today-tag {
+    background: #fff3cd; color: #856404; font-size: 11px; font-weight: bold;
+    padding: 2px 8px; border-radius: 10px;
+}
+.select-all-btn {
+    padding: 5px 14px; border-radius: 6px; border: 1.5px solid #ddd;
+    background: white; font-size: 13px; cursor: pointer; color: #555;
+    transition: border-color 0.15s, background 0.15s;
+}
+.select-all-btn:hover { border-color: #4CAF50; background: #f0faf0; color: #2d7a38; }
 
 .round-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
 .round-btn {
@@ -248,59 +265,12 @@
     ══════════════════════════════════════════════════════════ #}
     <div id="view-game" style="display:none;">
         <div class="round-filter" id="gameRoundFilter"></div>
-        <div class="filter-bar">
-            <input type="text" id="team-filter" placeholder="{{ t.results_filter_team }}" oninput="filterByTeam(this.value)">
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; align-items:center;">
+            <button class="round-btn" id="btnToday" onclick="scrollToToday()" style="background:#fff3cd; border-color:#f0c040; color:#856404; font-weight:bold;">{{ t.get('results_today', 'Idag') }} ☀</button>
+            <input type="text" id="team-filter" placeholder="{{ t.results_filter_team }}" oninput="filterByTeam(this.value)"
+                   style="padding:9px 13px; border:1.5px solid #ddd; border-radius:6px; font-size:14px; min-width:220px;">
         </div>
-        {% for match_id, data in predictions_by_match.items() %}
-        {% set m = data.match %}
-        {% set hc = flag_codes.get(m.home_team, '') %}
-        {% set ac = flag_codes.get(m.away_team, '') %}
-        <div class="match-card open" data-teams="{{ m.home_team|lower }} {{ m.away_team|lower }}" data-round="{{ m.round }}" onclick="toggleCard(this)">
-            <div class="match-header">
-                <div class="match-teams">
-                    {% if hc %}<img src="https://flagcdn.com/20x15/{{ hc }}.png" class="flag-sm">{% endif %}
-                    {{ m.home_team | country }}
-                    <span style="color:#bbb; font-weight:normal;">vs</span>
-                    {% if ac %}<img src="https://flagcdn.com/20x15/{{ ac }}.png" class="flag-sm">{% endif %}
-                    {{ m.away_team | country }}
-                </div>
-                <div style="display:flex; align-items:center; gap:12px;">
-                    {% if m.finished %}
-                    <span class="match-result">{{ m.home_goals }} – {{ m.away_goals }}</span>
-                    {% else %}
-                    <span class="match-result pending">{{ t.results_not_played }}</span>
-                    {% endif %}
-                    <span class="match-date local-time" data-utc="{{ m.match_date.strftime('%Y-%m-%dT%H:%M:00Z') }}">{{ m.match_date.strftime('%d %b %H:%M') }}</span>
-                    <span class="chevron">▼</span>
-                </div>
-            </div>
-            <div class="preds-table-wrap">
-                <table class="preds-table">
-                    <thead><tr>
-                        <th>Player</th><th>Prediction</th>
-                        {% if m.finished %}<th>Points</th>{% endif %}
-                    </tr></thead>
-                    <tbody>
-                    {% for pred in data.predictions|sort(attribute='user.name') %}
-                    <tr>
-                        <td>{{ pred.user.name }}</td>
-                        <td>
-                            {% if pred.predicted_outcome %}{{ pred.predicted_outcome }}
-                            {% else %}<span style="color:#ccc">—</span>{% endif %}
-                        </td>
-                        {% if m.finished %}<td>
-                            {% if pred.points is not none %}
-                            {% set p = pred.points %}
-                            <span class="pts-badge {% if p==1 %}pts-max{% elif p==0 %}pts-0{% else %}pts-other{% endif %}">{{ p }}p</span>
-                            {% else %}<span style="color:#ccc">—</span>{% endif %}
-                        </td>{% endif %}
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {% endfor %}
+        <div id="gameMatchList"></div>
     </div>
 
     {# ══════════════════════════════════════════════════════════
@@ -314,6 +284,10 @@
                 <span class="selector-arrow">▼</span>
             </div>
             <div class="selector-dropdown" id="selectorDropdown">
+                <div style="display:flex; gap:6px; padding:8px 14px; border-bottom:1px solid #eee;">
+                    <button class="select-all-btn" onclick="selectAllUsers(event)">{{ t.get('results_select_all', 'Välj alla') }}</button>
+                    <button class="select-all-btn" onclick="deselectAllUsers(event)">{{ t.get('results_deselect_all', 'Avmarkera alla') }}</button>
+                </div>
                 <input class="dropdown-search" type="text" placeholder="{{ t.results_filter_player }}"
                        oninput="filterDropdown(this.value)" onclick="event.stopPropagation()" autocomplete="off">
                 <div class="dropdown-list" id="dropdownList">
@@ -365,6 +339,7 @@ const MATCHES = [
         homeGoals: {{ m.home_goals | tojson }},
         awayGoals: {{ m.away_goals | tojson }},
         date: {{ m.match_date.strftime('%d %b') | tojson }},
+        utc: {{ m.match_date.strftime('%Y-%m-%dT%H:%M:00Z') | tojson }},
         round: {{ m.round | tojson }},
     },
     {% endfor %}
@@ -433,18 +408,134 @@ function setGameRound(round, btn) {
     gameRound = round;
     document.querySelectorAll('#gameRoundFilter .round-btn').forEach(function(b) { b.classList.remove('active'); });
     btn.classList.add('active');
-    applyGameFilters();
+    renderGameView();
 }
 function filterByTeam(q) {
-    applyGameFilters(q);
+    renderGameView();
 }
-function applyGameFilters(teamQ) {
-    var q = (teamQ !== undefined ? teamQ : document.getElementById('team-filter').value).toLowerCase().trim();
-    document.querySelectorAll('.match-card').forEach(function(c) {
-        var roundOk = gameRound === 'all' || c.dataset.round === gameRound;
-        var teamOk  = !q || c.dataset.teams.includes(q);
-        c.style.display = (roundOk && teamOk) ? '' : 'none';
+
+// Group matches by "match day" in North America (UTC-5 / CDT).
+// A 04:00 UTC match and a 21:00 UTC match are the same match day there.
+var VENUE_OFFSET = -5; // CDT (Central Daylight Time)
+function venueDate(utc) {
+    var d = new Date(utc);
+    var local = new Date(d.getTime() + VENUE_OFFSET * 3600000);
+    return local.getUTCFullYear() + '-' + String(local.getUTCMonth()+1).padStart(2,'0') + '-' + String(local.getUTCDate()).padStart(2,'0');
+}
+function venueDateLabel(utc) {
+    var d = new Date(utc);
+    var local = new Date(d.getTime() + VENUE_OFFSET * 3600000);
+    var days = ['Söndag','Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag'];
+    var months = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
+    return days[local.getUTCDay()] + ' ' + local.getUTCDate() + ' ' + months[local.getUTCMonth()];
+}
+function localTimeStr(utc) {
+    // Show kick-off in the user's browser timezone
+    var d = new Date(utc);
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function getTodayStr() {
+    // "Today" in venue timezone
+    var d = new Date(Date.now() + VENUE_OFFSET * 3600000);
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0');
+}
+
+function renderGameView() {
+    var teamQ = document.getElementById('team-filter').value.toLowerCase().trim();
+    var list = document.getElementById('gameMatchList');
+
+    // Filter matches
+    var filtered = MATCHES.filter(function(m) {
+        var roundOk = gameRound === 'all' || m.round === gameRound;
+        var teamOk  = !teamQ || (cn(m.home).toLowerCase().includes(teamQ) || cn(m.away).toLowerCase().includes(teamQ)
+                      || m.home.toLowerCase().includes(teamQ) || m.away.toLowerCase().includes(teamQ));
+        return roundOk && teamOk;
     });
+
+    // Group by local date
+    var groups = [], groupMap = {};
+    filtered.forEach(function(m) {
+        var key = venueDate(m.utc);
+        if (!groupMap[key]) {
+            groupMap[key] = { date: key, label: venueDateLabel(m.utc), matches: [] };
+            groups.push(groupMap[key]);
+        }
+        groupMap[key].matches.push(m);
+    });
+
+    var todayStr = getTodayStr();
+    var html = '';
+    groups.forEach(function(g) {
+        var isToday = g.date === todayStr;
+        html += '<div class="date-group-header ' + (isToday ? 'today' : '') + '" data-date="' + g.date + '">';
+        html += g.label;
+        if (isToday) html += ' <span class="today-tag">IDAG</span>';
+        html += '</div>';
+
+        g.matches.forEach(function(m) {
+            var hf = FLAG_CODES[m.home], af = FLAG_CODES[m.away];
+            var hImg = hf ? '<img src="https://flagcdn.com/20x15/' + hf + '.png" class="flag-sm"> ' : '';
+            var aImg = af ? '<img src="https://flagcdn.com/20x15/' + af + '.png" class="flag-sm"> ' : '';
+
+            html += '<div class="match-card" data-date="' + g.date + '" onclick="toggleCard(this)">';
+            html += '<div class="match-header">';
+            html += '<div class="match-teams">' + hImg + cn(m.home)
+                 + ' <span style="color:#bbb;font-weight:normal">vs</span> '
+                 + aImg + cn(m.away) + '</div>';
+            html += '<div style="display:flex;align-items:center;gap:12px;">';
+            if (m.finished) {
+                html += '<span class="match-result">' + m.homeGoals + ' – ' + m.awayGoals + '</span>';
+            } else {
+                html += '<span class="match-result pending">' + STR_NOT_PLAYED + '</span>';
+            }
+            html += '<span class="match-date">' + localTimeStr(m.utc) + '</span>';
+            html += '<span class="chevron">▼</span></div></div>';
+
+            // Predictions table
+            html += '<div class="preds-table-wrap"><table class="preds-table"><thead><tr>';
+            html += '<th>Player</th><th>Prediction</th>';
+            if (m.finished) html += '<th>Points</th>';
+            html += '</tr></thead><tbody>';
+
+            var sortedUsers = ALL_USERS.slice().sort(function(a,b) { return a.name.localeCompare(b.name); });
+            sortedUsers.forEach(function(u) {
+                var p = (PREDS[u.id] || {})[m.id];
+                if (!p) return;
+                html += '<tr><td>' + u.name + '</td><td>';
+                if (p.outcome) {
+                    html += p.outcome;
+                } else {
+                    html += '<span style="color:#ccc">—</span>';
+                }
+                html += '</td>';
+                if (m.finished) {
+                    html += '<td>';
+                    if (p.pts !== null && p.pts !== undefined) {
+                        var cls = p.pts === 1 ? 'pts-max' : (p.pts === 0 ? 'pts-0' : 'pts-other');
+                        html += '<span class="pts-badge ' + cls + '">' + p.pts + 'p</span>';
+                    } else {
+                        html += '<span style="color:#ccc">—</span>';
+                    }
+                    html += '</td>';
+                }
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div></div>';
+        });
+    });
+
+    list.innerHTML = html || '<p style="color:#aaa;font-style:italic;">Inga matcher hittades</p>';
+}
+
+function scrollToToday() {
+    var todayStr = getTodayStr();
+    var header = document.querySelector('.date-group-header[data-date="' + todayStr + '"]');
+    if (header) {
+        header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        alert('Inga matcher idag');
+    }
 }
 
 // ── Dropdown ──────────────────────────────────────────────────────────────────
@@ -490,6 +581,24 @@ function toggleUser(uid, e) {
     } else {
         selectedUsers.splice(idx, 1);
     }
+    saveSelection();
+    renderChips();
+    renderDropdownChecks();
+    renderCompareTable();
+}
+
+function selectAllUsers(e) {
+    e.stopPropagation();
+    selectedUsers = ALL_USERS.map(function(u) { return u.id; });
+    saveSelection();
+    renderChips();
+    renderDropdownChecks();
+    renderCompareTable();
+}
+
+function deselectAllUsers(e) {
+    e.stopPropagation();
+    selectedUsers = [];
     saveSelection();
     renderChips();
     renderDropdownChecks();
@@ -661,6 +770,7 @@ document.querySelectorAll('.dropdown-item .check').forEach(function(el) {
 });
 buildRoundFilter();
 buildGameRoundFilter();
+renderGameView();
 
 // Restore last view (default: user)
 var savedView = 'user';
