@@ -51,8 +51,11 @@ def today():
     day_start_utc = datetime(venue_today.year, venue_today.month, venue_today.day, 5, 0, tzinfo=timezone.utc)
     day_end_utc = day_start_utc + timedelta(days=1)
 
-    # Find all match days for navigation
-    all_match_dates_raw = [m[0] for m in db.query(Match.match_date).all()]
+    # Find all match days for navigation — only days with locked-round matches
+    all_match_dates_raw = [
+        m[0] for m in db.query(Match.match_date)
+        .filter(Match.round.in_(locked_rounds)).all()
+    ] if locked_rounds else []
     match_days = sorted({(d + timedelta(hours=-5)).date() for d in all_match_dates_raw})
 
     # Previous and next match day relative to selected date
@@ -69,15 +72,17 @@ def today():
     actual_today = (datetime.now(timezone.utc) + timedelta(hours=-5)).date()
     is_today = venue_today == actual_today
 
+    # Deadlines to check visibility — only show matches whose round deadline has passed
+    deadlines = {d.round: d for d in db.query(RoundDeadline).all()}
+    locked_rounds = {r for r, d in deadlines.items() if d.is_past()}
+
     matches = (
         db.query(Match)
-        .filter(Match.match_date >= day_start_utc, Match.match_date < day_end_utc)
+        .filter(Match.match_date >= day_start_utc, Match.match_date < day_end_utc,
+                Match.round.in_(locked_rounds))
         .order_by(Match.match_date)
         .all()
-    )
-
-    # Deadlines to check visibility
-    deadlines = {d.round: d for d in db.query(RoundDeadline).all()}
+    ) if locked_rounds else []
 
     # All predictions for today's matches
     match_ids = [m.id for m in matches]
@@ -94,15 +99,12 @@ def today():
     # Build structure: match -> {user_id: prediction}
     matches_data = []
     for match in matches:
-        deadline = deadlines.get(match.round)
-        round_locked = deadline.is_past() if deadline else False
-
         preds_for_match = {p.user_id: p for p in all_preds if p.match_id == match.id}
 
         matches_data.append({
             'match': match,
             'predictions': preds_for_match,
-            'round_locked': round_locked,
+            'round_locked': True,  # all shown matches are past deadline
         })
 
     # Sum points per user for today's finished matches
