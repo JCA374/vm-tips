@@ -236,9 +236,20 @@ def predict():
             'is_knockout': False,
         })
 
+    # Default to the round with the closest upcoming deadline
+    default_tab = None
+    soonest_deadline = None
+    for rd in rounds_data:
+        if rd['deadline'] and not rd['locked']:
+            dl = rd['deadline'].deadline
+            if soonest_deadline is None or dl < soonest_deadline:
+                soonest_deadline = dl
+                default_tab = rd['key']
+
     return render_template('prediction/predict.html',
                            rounds_data=rounds_data,
-                           predictions=predictions_dict)
+                           predictions=predictions_dict,
+                           default_tab=default_tab)
 
 
 @prediction_bp.route('/results')

@@ -5,7 +5,7 @@ import shutil
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, jsonify, send_file
 from functools import wraps
 from datetime import datetime
-from backend.models import User, Match, Prediction, RoundDeadline, Invite, SessionLocal
+from backend.models import User, Match, Prediction, RoundDeadline, Invite, ActivityLog, SessionLocal
 from backend.match_data.service import sync_matches, update_match_results
 from backend.prediction.service import calculate_all_scores
 from backend import config
@@ -188,12 +188,67 @@ def status():
     return render_template('admin/status.html', stats=stats, matches=matches, pred_counts=pred_counts)
 
 
+@admin_bp.route('/activity')
+@require_admin
+def activity():
+    """Activity log — who is viewing what and when"""
+    from sqlalchemy import func, desc
+
+    db = SessionLocal()
+
+    # Recent page views (last 100, skip bot/static noise and login redirects)
+    recent_views = (db.query(ActivityLog, User)
+                    .outerjoin(User, ActivityLog.user_id == User.id)
+                    .filter(ActivityLog.method == 'GET')
+                    .filter(ActivityLog.status_code < 400)
+                    .filter(ActivityLog.user_id.isnot(None))
+                    .order_by(ActivityLog.timestamp.desc())
+                    .limit(100)
+                    .all())
+
+    # Active users today
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    active_today = (db.query(User)
+                    .filter(User.last_active_at >= today_start)
+                    .order_by(User.last_active_at.desc())
+                    .all())
+
+    # Most visited pages (last 24h)
+    from datetime import timedelta as td
+    since_24h = datetime.utcnow() - td(hours=24)
+    popular_pages = (db.query(ActivityLog.path, func.count(ActivityLog.id).label('hits'))
+                     .filter(ActivityLog.timestamp >= since_24h)
+                     .filter(ActivityLog.method == 'GET')
+                     .filter(ActivityLog.user_id.isnot(None))
+                     .group_by(ActivityLog.path)
+                     .order_by(desc('hits'))
+                     .limit(15)
+                     .all())
+
+    # Activity per user (last 24h)
+    user_activity = (db.query(User.name, func.count(ActivityLog.id).label('views'))
+                     .join(ActivityLog, ActivityLog.user_id == User.id)
+                     .filter(ActivityLog.timestamp >= since_24h)
+                     .filter(ActivityLog.method == 'GET')
+                     .group_by(User.id)
+                     .order_by(desc('views'))
+                     .all())
+
+    db.close()
+    return render_template('admin/activity.html',
+                           recent_views=recent_views,
+                           active_today=active_today,
+                           popular_pages=popular_pages,
+                           user_activity=user_activity)
+
+
 @admin_bp.route('/sync-matches', methods=['POST'])
 @require_admin
 def sync_matches_route():
     result = sync_matches()
     if result['status'] == 'success':
-        flash(f"Synced {result['synced']} new matches, updated {result['updated']} matches.")
+        scores = calculate_all_scores()
+        flash(f"Synced {result['synced']} new, updated {result['updated']} matches. Scores: {scores.get('updated', 0)} predictions recalculated.")
     else:
         flash(f"Error syncing matches: {result.get('message', 'Unknown error')}", 'error')
     return redirect(url_for('admin.status'))

@@ -19,16 +19,16 @@
     border-radius: 6px 6px 0 0;
     font-size: 14px;
     font-weight: 600;
-    color: var(--text-muted);
+    color: #222;
     transition: background 0.15s;
 }
 .tab-btn:hover { background: var(--accent-faint); }
 .tab-btn.active {
     background: var(--card-bg);
     border-color: var(--accent);
-    color: var(--accent-dark);
+    color: #222;
 }
-.tab-btn.locked { color: #c0392b; }
+.tab-btn.locked { color: #aaa; }
 .tab-panel {
     display: none;
     background: var(--card-bg);
@@ -175,7 +175,7 @@
 
     <div class="tabs">
         {% for round in rounds_data %}
-        <button class="tab-btn {% if loop.first %}active{% endif %} {% if round.locked %}locked{% endif %}"
+        <button class="tab-btn {% if round.key == default_tab or (not default_tab and loop.first) %}active{% endif %} {% if round.locked %}locked{% endif %}"
                 data-tab="tab-{{ round.key }}"
                 type="button">
             {{ round.label }}
@@ -186,7 +186,7 @@
     <form method="POST">
     <input type="hidden" name="active_round" id="active_round" value="">
     {% for round in rounds_data %}
-    <div id="tab-{{ round.key }}" class="tab-panel {% if loop.first %}active{% endif %}">
+    <div id="tab-{{ round.key }}" class="tab-panel {% if round.key == default_tab or (not default_tab and loop.first) %}active{% endif %}">
 
         {% if round.deadline %}
             {% if round.locked %}
