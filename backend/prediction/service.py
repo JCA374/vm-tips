@@ -128,7 +128,7 @@ def get_leaderboard():
             func.sum(Prediction.points).label('total_points')
         ).join(Prediction, User.id == Prediction.user_id, isouter=True)\
          .group_by(User.id, User.name, User.email)\
-         .order_by(func.sum(Prediction.points).desc())\
+         .order_by(func.sum(Prediction.points).desc(), User.name)\
          .all()
 
         leaderboard = []
@@ -163,7 +163,7 @@ def get_round_leaderboard(round_name):
          .join(Match, Prediction.match_id == Match.id)\
          .filter(Match.round == round_name)\
          .group_by(User.id, User.name, User.email)\
-         .order_by(func.sum(Prediction.points).desc())\
+         .order_by(func.sum(Prediction.points).desc(), User.name)\
          .all()
 
         leaderboard = []
