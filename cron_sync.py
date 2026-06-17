@@ -7,6 +7,9 @@ and finish ~05:00 CEST. The API sometimes needs 1-2 hours to report FINISHED.
 Extra morning syncs ensure results are captured before people check the app.
 
 Suggested crontab (server runs UTC; CEST = UTC+2):
+  # After 19:00 CEST kick-off matches (done ~21:00 CEST, API may lag 30-60 min)
+  30 19 * * *  cd /opt/vm-tips && docker exec vm-tips-web-1 python cron_sync.py >> /var/log/vm_sync.log 2>&1
+  0 20 * * *   cd /opt/vm-tips && docker exec vm-tips-web-1 python cron_sync.py >> /var/log/vm_sync.log 2>&1
   # After evening matches (21:00 CEST kick-off → done ~23:00)
   0 21 * * *   cd /opt/vm-tips && docker exec vm-tips-web-1 python cron_sync.py >> /var/log/vm_sync.log 2>&1
   # After night matches (00:00-01:00 CEST kick-off → done ~03:00)
