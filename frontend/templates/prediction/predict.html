@@ -203,6 +203,7 @@
                     {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }}
                 </span>
             </span>
+            <p style="font-size:13px; color:#555; margin-top:8px; margin-bottom:0;">{{ t.predict_change_hint | safe }}</p>
             {% endif %}
         {% else %}
         <span class="deadline-badge no-deadline">{{ t.predict_no_deadline }}</span>

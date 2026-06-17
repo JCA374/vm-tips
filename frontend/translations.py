@@ -158,6 +158,7 @@ TRANSLATIONS = {
         'predict_deadline': 'Deadline:',
         'predict_no_deadline': 'Ingen deadline satt ännu',
         'predict_no_matches': 'Inga matcher schemalagda ännu',
+        'predict_change_hint': 'Du kan ändra dina tips fram till deadline — välj nytt utfall och tryck <strong>Spara tips</strong>.',
 
         # Leaderboard
         'leaderboard_title': 'Topplista',
@@ -288,6 +289,7 @@ TRANSLATIONS = {
         'predict_deadline': 'Deadline:',
         'predict_no_deadline': 'No deadline set yet',
         'predict_no_matches': 'No matches scheduled yet',
+        'predict_change_hint': 'You can change your predictions until the deadline — select a new outcome and press <strong>Save Predictions</strong>.',
 
         # Leaderboard
         'leaderboard_title': 'Leaderboard',
