@@ -31,6 +31,20 @@
 .today-date { text-align: right; }
 .today-day { display: block; font-size: 16px; font-weight: 700; color: var(--text); }
 .today-ymd { display: block; font-size: 13px; color: var(--text-muted); }
+.refresh-btn {
+    display: block;
+    margin: 6px auto 0;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background .15s;
+}
+.refresh-btn:hover { background: #f0f3f6; }
+.refresh-btn:disabled { opacity: .5; cursor: wait; }
 
 .today-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .today-table {
@@ -182,6 +196,7 @@
             <span class="today-day" data-date="{{ venue_date.isoformat() }}"></span>
             <span class="today-ymd">{{ venue_date.strftime('%Y-%m-%d') }}</span>
         </div>
+        <button id="refresh-btn" class="refresh-btn" title="{{ t.get('today_refresh_title', 'Hämta senaste resultat') }}">&#x21bb; {{ t.get('today_refresh', 'Uppdatera resultat') }}</button>
     </div>
 
     <div class="day-nav">
@@ -204,9 +219,45 @@
         {% endif %}
     </div>
 
-    {% if not matches_data %}
+    {% if unlocked_matches %}
+    <div class="empty-state" style="margin-bottom:1.2em;">{{ t.get('today_hidden', 'Tipsen visas efter att deadlinen har passerat.') }}</div>
+    <div class="today-wrap">
+    <table class="today-table">
+        <colgroup>
+            <col class="col-name">
+        </colgroup>
+        <thead>
+            <tr>
+                {% for m in unlocked_matches %}
+                <th>
+                    <div class="match-col-head">
+                        <div class="match-col-team">
+                            {% set hc = flag_codes.get(m.home_team, '') %}
+                            {% if hc %}<img src="https://flagcdn.com/24x18/{{ hc }}.png">{% endif %}
+                            <span class="team-full">{{ m.home_team | country }}</span>
+                            <span class="team-short" style="display:none">{{ m.home_team | country | truncate(3, True, '') }}</span>
+                        </div>
+                        <div class="match-col-team">
+                            {% set ac = flag_codes.get(m.away_team, '') %}
+                            {% if ac %}<img src="https://flagcdn.com/24x18/{{ ac }}.png">{% endif %}
+                            <span class="team-full">{{ m.away_team | country }}</span>
+                            <span class="team-short" style="display:none">{{ m.away_team | country | truncate(3, True, '') }}</span>
+                        </div>
+                        <div class="match-col-info">
+                            <span class="match-col-time local-time-short" data-utc="{{ m.match_date.strftime('%Y-%m-%dT%H:%M:00Z') }}">{{ m.match_date.strftime('%H:%M') }}</span>
+                        </div>
+                    </div>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+    </table>
+    </div>
+    {% endif %}
+
+    {% if not matches_data and not unlocked_matches %}
     <div class="empty-state">{{ t.get('today_empty', 'Inga matcher idag.') }}</div>
-    {% else %}
+    {% elif matches_data %}
 
     {% set has_finished = matches_data | selectattr('match.finished') | list | length > 0 %}
 
@@ -295,6 +346,32 @@
     var days = ['Söndag','Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag'];
     var d = new Date(el.dataset.date + 'T12:00:00');
     el.textContent = days[d.getDay()];
+})();
+
+(function() {
+    var btn = document.getElementById('refresh-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+        btn.disabled = true;
+        btn.textContent = '↻ …';
+        fetch('/today/refresh', {method: 'POST'})
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ok && data.msg.indexOf('Försök') === -1) {
+                    location.reload();
+                } else {
+                    btn.textContent = data.msg;
+                    setTimeout(function() {
+                        btn.textContent = '↻ Uppdatera resultat';
+                        btn.disabled = false;
+                    }, 4000);
+                }
+            })
+            .catch(function() {
+                btn.textContent = 'Fel — försök igen';
+                btn.disabled = false;
+            });
+    });
 })();
 </script>
 {% endblock %}

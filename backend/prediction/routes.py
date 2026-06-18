@@ -1,15 +1,20 @@
 """Prediction routes - Betting form, leaderboard, results"""
 from datetime import datetime, timezone, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from sqlalchemy.orm import joinedload
 from backend.prediction.service import (
     get_leaderboard, submit_prediction, get_user_predictions,
     get_all_predictions_for_round, check_deadline_passed,
     calculate_all_scores,
 )
+from backend.match_data.service import sync_matches
 from backend.models import SessionLocal, RoundDeadline, Match, Prediction, User
 
 prediction_bp = Blueprint('prediction', __name__)
+
+# Global cooldown for user-triggered refresh (shared across all users)
+_last_refresh = {'time': None}
+REFRESH_COOLDOWN = 300  # 5 minutes
 
 ROUNDS = [
     ('group_md1',   'Round 1'),
@@ -84,6 +89,15 @@ def today():
         .all()
     ) if locked_rounds else []
 
+    # Matches today whose deadline hasn't passed yet (show without predictions)
+    unlocked_matches = (
+        db.query(Match)
+        .filter(Match.match_date >= day_start_utc, Match.match_date < day_end_utc,
+                ~Match.round.in_(locked_rounds) if locked_rounds else True)
+        .order_by(Match.match_date)
+        .all()
+    )
+
     # All predictions for today's matches
     match_ids = [m.id for m in matches]
     all_preds = (
@@ -143,7 +157,36 @@ def today():
                            prev_day=prev_day,
                            next_day=next_day,
                            is_today=is_today,
-                           actual_today=actual_today)
+                           actual_today=actual_today,
+                           unlocked_matches=unlocked_matches)
+
+
+@prediction_bp.route('/today/refresh', methods=['POST'])
+def today_refresh():
+    """User-triggered sync: fetch latest results from API and recalculate scores."""
+    if not session.get('user_id'):
+        return jsonify({'ok': False, 'msg': 'Not logged in'}), 401
+
+    now = datetime.now(timezone.utc)
+
+    # Global cooldown — one API call per 5 min across all users
+    if _last_refresh['time']:
+        elapsed = (now - _last_refresh['time']).total_seconds()
+        if elapsed < REFRESH_COOLDOWN:
+            remaining = int(REFRESH_COOLDOWN - elapsed)
+            mins, secs = divmod(remaining, 60)
+            wait = f'{mins}:{secs:02d}'
+            return jsonify({'ok': True, 'msg': f'Uppdaterades nyligen. Försök igen om {wait}.'})
+
+    _last_refresh['time'] = now
+    result = sync_matches()
+    if result.get('status') == 'success':
+        calculate_all_scores()
+        return jsonify({'ok': True, 'msg': 'Resultat uppdaterade!'})
+    else:
+        # Don't burn the cooldown on a failed call
+        _last_refresh['time'] = None
+        return jsonify({'ok': False, 'msg': 'Kunde inte hämta data. Försök igen senare.'})
 
 
 @prediction_bp.route('/leaderboard')

@@ -158,6 +158,10 @@ TRANSLATIONS = {
         'predict_deadline': 'Deadline:',
         'predict_no_deadline': 'Ingen deadline satt ännu',
         'predict_no_matches': 'Inga matcher schemalagda ännu',
+        'today_empty': 'Inga matcher idag.',
+        'today_hidden': 'Tipsen visas efter att deadlinen har passerat.',
+        'today_refresh': 'Uppdatera resultat',
+        'today_refresh_title': 'Hämta senaste resultat',
         'predict_change_hint': 'Du kan ändra dina tips fram till deadline — välj nytt utfall och tryck <strong>Spara tips</strong>.',
 
         # Leaderboard
@@ -289,6 +293,10 @@ TRANSLATIONS = {
         'predict_deadline': 'Deadline:',
         'predict_no_deadline': 'No deadline set yet',
         'predict_no_matches': 'No matches scheduled yet',
+        'today_empty': 'No matches today.',
+        'today_hidden': 'Predictions will be shown after the deadline has passed.',
+        'today_refresh': 'Update results',
+        'today_refresh_title': 'Fetch latest results',
         'predict_change_hint': 'You can change your predictions until the deadline — select a new outcome and press <strong>Save Predictions</strong>.',
 
         # Leaderboard
