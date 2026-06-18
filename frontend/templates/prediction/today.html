@@ -32,13 +32,13 @@
 .today-day { display: block; font-size: 16px; font-weight: 700; color: var(--text); }
 .today-ymd { display: block; font-size: 13px; color: var(--text-muted); }
 .refresh-btn {
-    display: block;
-    margin: 6px auto 0;
+    display: inline-block;
+    margin-top: 4px;
     background: none;
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 4px 12px;
-    font-size: 12px;
+    padding: 3px 10px;
+    font-size: 11px;
     color: var(--text-muted);
     cursor: pointer;
     transition: background .15s;
@@ -195,8 +195,10 @@
         <div class="today-date">
             <span class="today-day" data-date="{{ venue_date.isoformat() }}"></span>
             <span class="today-ymd">{{ venue_date.strftime('%Y-%m-%d') }}</span>
+            {% if not all_finished %}
+            <button id="refresh-btn" class="refresh-btn" title="{{ t.get('today_refresh_title', 'Hämta senaste resultat') }}">&#x21bb; {{ t.get('today_refresh', 'Uppdatera resultat') }}</button>
+            {% endif %}
         </div>
-        <button id="refresh-btn" class="refresh-btn" title="{{ t.get('today_refresh_title', 'Hämta senaste resultat') }}">&#x21bb; {{ t.get('today_refresh', 'Uppdatera resultat') }}</button>
     </div>
 
     <div class="day-nav">

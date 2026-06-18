@@ -146,6 +146,10 @@ def today():
                     tip_groups[uid] = color_idx
                 color_idx += 1
 
+    # Check if all today's matches (locked + unlocked) have finished
+    all_day_matches = matches + unlocked_matches
+    all_finished = len(all_day_matches) > 0 and all(m.finished for m in all_day_matches)
+
     db.close()
 
     return render_template('prediction/today.html',
@@ -158,7 +162,8 @@ def today():
                            next_day=next_day,
                            is_today=is_today,
                            actual_today=actual_today,
-                           unlocked_matches=unlocked_matches)
+                           unlocked_matches=unlocked_matches,
+                           all_finished=all_finished)
 
 
 @prediction_bp.route('/today/refresh', methods=['POST'])
@@ -166,6 +171,19 @@ def today_refresh():
     """User-triggered sync: fetch latest results from API and recalculate scores."""
     if not session.get('user_id'):
         return jsonify({'ok': False, 'msg': 'Not logged in'}), 401
+
+    # Check if all today's matches are already finished — no need to call API
+    db = SessionLocal()
+    venue_now = datetime.now(timezone.utc) + timedelta(hours=-5)
+    venue_today = venue_now.date()
+    day_start_utc = datetime(venue_today.year, venue_today.month, venue_today.day, 5, 0, tzinfo=timezone.utc)
+    day_end_utc = day_start_utc + timedelta(days=1)
+    today_matches = db.query(Match).filter(
+        Match.match_date >= day_start_utc, Match.match_date < day_end_utc
+    ).all()
+    db.close()
+    if today_matches and all(m.finished for m in today_matches):
+        return jsonify({'ok': True, 'msg': 'Alla matcher är redan klara!'})
 
     now = datetime.now(timezone.utc)
 
