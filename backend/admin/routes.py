@@ -242,6 +242,23 @@ def activity():
                            user_activity=user_activity)
 
 
+@admin_bp.route('/reminders')
+@require_admin
+def reminders():
+    """Log of all reminder emails sent"""
+    from pathlib import Path
+    history_path = Path(__file__).parent.parent.parent / 'data' / 'reminder_history.json'
+    entries = []
+    if history_path.exists():
+        try:
+            entries = json.loads(history_path.read_text())
+        except Exception:
+            pass
+    # Show newest first
+    entries.reverse()
+    return render_template('admin/reminders.html', entries=entries)
+
+
 @admin_bp.route('/sync-matches', methods=['POST'])
 @require_admin
 def sync_matches_route():

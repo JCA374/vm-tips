@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Reminders — Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-nav {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.admin-nav a {
+    padding: 0.55rem 1.1rem;
+    background: var(--accent-faint);
+    color: var(--accent-dark);
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    transition: background .15s;
+}
+.admin-nav a:hover { background: #C5D8EE; }
+.reminder-row td { font-size: 0.9rem; }
+.round-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--accent-faint);
+    color: var(--accent-dark);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 style="margin-bottom:1.5rem;">Reminder Log</h2>
+
+    <div class="admin-nav">
+        <a href="/backstage/">Dashboard</a>
+        <a href="/backstage/users">Users</a>
+        <a href="/backstage/deadlines">Deadlines</a>
+        <a href="/backstage/status">Matches &amp; Sync</a>
+        <a href="/backstage/backup">Backup / Restore</a>
+        <a href="/backstage/activity">Activity</a>
+    </div>
+
+    {% if entries %}
+    <p style="color:#666; margin-bottom:1rem;">{{ entries|length }} reminder{{ 's' if entries|length != 1 }} sent.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Sent</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Round</th>
+                <th>Missing</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entries %}
+            <tr class="reminder-row">
+                <td><span class="local-time" data-utc="{{ e.sent_at }}">{{ e.sent_at[:16]|replace('T', ' ') }}</span></td>
+                <td>{{ e.name }}</td>
+                <td>{{ e.email }}</td>
+                <td><span class="round-badge">{{ e.round_label }}</span></td>
+                <td>{{ e.missing }} {{ 'match' if e.missing == 1 else 'matcher' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#888;">No reminders sent yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

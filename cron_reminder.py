@@ -34,6 +34,8 @@ SEND_NOW = os.getenv('REMINDER_SEND_NOW', '').strip() == '1'
 
 # Track which (round, user_email) combos we already sent
 SENT_LOG = Path(__file__).parent / 'data' / 'reminders_sent.json'
+# Detailed log for admin view: list of {round, email, name, missing, sent_at}
+REMINDER_HISTORY = Path(__file__).parent / 'data' / 'reminder_history.json'
 
 STOCKHOLM_TZ = ZoneInfo('Europe/Stockholm')
 
@@ -64,6 +66,21 @@ def load_sent_log():
 
 def save_sent_log(sent_set):
     SENT_LOG.write_text(json.dumps(sorted(sent_set)))
+
+
+def load_history():
+    if REMINDER_HISTORY.exists():
+        try:
+            return json.loads(REMINDER_HISTORY.read_text())
+        except Exception:
+            return []
+    return []
+
+
+def append_history(entry):
+    history = load_history()
+    history.append(entry)
+    REMINDER_HISTORY.write_text(json.dumps(history, ensure_ascii=False))
 
 
 def get_missing_predictions(db, round_name):
@@ -210,6 +227,15 @@ def main():
 
                 # Mark as sent (use real email, not demo redirect)
                 sent_log.add(f'{dl.round}:{user.email}')
+
+                append_history({
+                    'round': dl.round,
+                    'round_label': round_label,
+                    'email': user.email,
+                    'name': user.name,
+                    'missing': missing_count,
+                    'sent_at': now.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                })
 
             except Exception as e:
                 print(f'    FAILED {to_email}: {e}')
