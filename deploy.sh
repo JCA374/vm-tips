@@ -4,6 +4,14 @@
 
 set -euo pipefail
 
+# Auto-commit any uncommitted changes before deploying
+if ! git diff --quiet HEAD 2>/dev/null; then
+  echo "Uncommitted changes detected — committing before deploy..."
+  git add -A
+  git commit -m "auto-save before deploy $(date +%Y-%m-%d_%H:%M)"
+  echo ""
+fi
+
 SERVER="root@178.128.254.166"
 REMOTE_DIR="/opt/vm-tips/"
 DB_PATH="${REMOTE_DIR}data/vm_tips.db"
