@@ -1,22 +1,26 @@
-"""Cron job: send reminder emails 24h before round deadlines.
+"""Cron job: send reminder emails before round deadlines.
+
+Group stages: sends when deadline is 23-25 hours away.
+Knockout rounds: sends at 10:00 Stockholm time if deadline hasn't passed.
 
 Only emails users who have missing predictions for that round.
 Each user gets MAX ONE email per round (tracked in a sent-log file).
 In demo mode (REMINDER_DEMO=1), only sends to ADMIN_EMAIL.
 
-Suggested crontab (runs every hour, only sends when 24h window matches):
+Suggested crontab (runs every hour):
   0 * * * * docker exec vm-tips-web-1 python cron_reminder.py >> /var/log/vm_reminder.log 2>&1
 
 Usage:
   python cron_reminder.py              # normal mode
   REMINDER_DEMO=1 python cron_reminder.py   # demo: only sends to admin
-  REMINDER_SEND_NOW=1 python cron_reminder.py  # ignore 24h window, send now
+  REMINDER_SEND_NOW=1 python cron_reminder.py  # ignore time window, send now
 """
 import json
 import os
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 if 'DATABASE_PATH' not in os.environ:
     os.environ['DATABASE_PATH'] = os.path.join(os.path.dirname(__file__), 'data', 'vm_tips.db')
@@ -30,6 +34,10 @@ SEND_NOW = os.getenv('REMINDER_SEND_NOW', '').strip() == '1'
 
 # Track which (round, user_email) combos we already sent
 SENT_LOG = Path(__file__).parent / 'data' / 'reminders_sent.json'
+
+STOCKHOLM_TZ = ZoneInfo('Europe/Stockholm')
+
+KNOCKOUT_ROUNDS = {'round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final'}
 
 ROUND_LABELS = {
     'group_md1': 'Omgång 1',
@@ -135,21 +143,41 @@ def main():
 
     sent_total = 0
 
+    now_stockholm = now.astimezone(STOCKHOLM_TZ)
+
+    # Find the nearest upcoming knockout deadline (only remind for this one)
+    next_knockout_dl = None
+    for dl in deadlines:
+        if dl.round not in KNOCKOUT_ROUNDS:
+            continue
+        dl_utc = dl.deadline.replace(tzinfo=timezone.utc)
+        if dl_utc < now:
+            continue
+        if next_knockout_dl is None or dl_utc < next_knockout_dl.deadline.replace(tzinfo=timezone.utc):
+            next_knockout_dl = dl
+
     for dl in deadlines:
         deadline_utc = dl.deadline.replace(tzinfo=timezone.utc)
         hours_until = (deadline_utc - now).total_seconds() / 3600
 
-        # Send if deadline is 23-25 hours away (2h window)
-        # Or if SEND_NOW is set and deadline hasn't passed yet
         if SEND_NOW:
             if deadline_utc < now:
                 continue
+        elif dl.round in KNOCKOUT_ROUNDS:
+            # Only send for the nearest upcoming knockout deadline
+            if dl != next_knockout_dl:
+                continue
+            # Send at 10:00 Stockholm time
+            if now_stockholm.hour != 10:
+                continue
         else:
+            # Group stages: send when deadline is 23-25 hours away
             if hours_until < 23 or hours_until > 25:
                 continue
 
         round_label = ROUND_LABELS.get(dl.round, dl.round)
-        deadline_str = deadline_utc.strftime('%Y-%m-%d %H:%M UTC')
+        deadline_stockholm = deadline_utc.astimezone(STOCKHOLM_TZ)
+        deadline_str = deadline_stockholm.strftime('%d %b %H:%M')
 
         print(f'  Round: {round_label} (deadline: {deadline_str}, {hours_until:.1f}h away)')
 
