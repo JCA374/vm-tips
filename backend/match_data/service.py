@@ -1,6 +1,6 @@
 """Match data service - Fetch matches and results from football API"""
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from backend import config
 from backend.models import Match, get_db, SessionLocal
 
@@ -74,6 +74,9 @@ def sync_matches(competition_id=2000):
     db = SessionLocal()
     synced = 0
     updated = 0
+    skipped = 0
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=2)
 
     try:
         for match_data in data['matches']:
@@ -93,6 +96,19 @@ def sync_matches(competition_id=2000):
             status = match_data['status']
             finished = status in ['FINISHED', 'AWARDED']
 
+            existing = db.query(Match).filter_by(external_id=external_id).first()
+
+            # Skip matches that don't need updating:
+            # - Future matches (not started yet, no results to collect)
+            # - Matches older than 2 days that are already finished in our DB
+            if existing:
+                if match_date > now and not finished:
+                    skipped += 1
+                    continue
+                if existing.finished and match_date < cutoff:
+                    skipped += 1
+                    continue
+
             if finished:
                 score = match_data['score']
                 # Knockout matches: use regularTime (90 min) so extra time
@@ -106,8 +122,6 @@ def sync_matches(competition_id=2000):
             else:
                 home_goals = None
                 away_goals = None
-
-            existing = db.query(Match).filter_by(external_id=external_id).first()
 
             if existing:
                 existing.home_team = home_team
@@ -138,6 +152,7 @@ def sync_matches(competition_id=2000):
             'status': 'success',
             'synced': synced,
             'updated': updated,
+            'skipped': skipped,
             'total': synced + updated
         }
 

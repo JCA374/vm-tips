@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tema 2C – Ocean Deep</title>
+<style>
+  /*
+   * VARIANT C – DEEP OCEAN DARK
+   * Full dark mode. The ocean palette lives in near-black water.
+   * Cards use a subtle blue-tinted dark surface — not flat black,
+   * not grey, but distinctly oceanic. Cyan and blue accents glow
+   * with purpose. High contrast where it matters (text, inputs),
+   * zero white "flash". Good for premium / night-use feel.
+   */
+  :root {
+    --accent:       #29B6F6;   /* sky-cyan for dark bg */
+    --accent-dark:  #0277BD;
+    --accent-hover: #039BE5;
+    --accent-faint: rgba(41,182,246,.12);
+    --header-bg:    #040E18;
+    --header-border:#00ACC1;
+    --highlight:    #00ACC1;
+    --text:         #C8DAE8;
+    --text-strong:  #E4F0F8;
+    --text-muted:   #5A7A90;
+    --bg:           #060F1A;   /* near-black ocean */
+    --card-bg:      #0D1E2E;   /* lifted card: blue-black */
+    --card-border:  #142332;
+    --inset-bg:     #070F1A;   /* match rows, inputs */
+    --border:       #142332;
+    --success-bg:   rgba(0,172,193,.1);
+    --success-text: #4DD0E1;
+    --error-bg:     rgba(229,57,53,.1);
+    --error-text:   #EF9A9A;
+  }
+
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--header-bg);
+    color: var(--text-strong);
+    padding: 0 20px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 2px solid var(--header-border);
+  }
+  header .logo { font-size: 1.6rem; }
+  header h1 { font-size: 1.2rem; font-weight: 700; }
+  header .tagline { font-size: 11px; opacity: .4; margin-top: 1px; text-transform: uppercase; letter-spacing: .8px; }
+
+  /* ── Nav ── */
+  nav {
+    background: #060F1A;
+    padding: 0 12px;
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border);
+  }
+  nav a {
+    color: #4E7A90;
+    text-decoration: none;
+    padding: .65rem .9rem;
+    font-size: 13.5px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color .15s, background .15s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  nav a:hover  { color: var(--text); background: rgba(255,255,255,.03); }
+  nav a.active { color: var(--highlight); border-bottom-color: var(--highlight); }
+  nav .spacer  { flex: 1; }
+
+  /* ── Container ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+  /* ── Flash ── */
+  .flash {
+    padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;
+    font-size: 14px; border: 1px solid;
+  }
+  .flash.success {
+    background: var(--success-bg);
+    color: var(--success-text);
+    border-color: rgba(0,172,193,.25);
+    border-left: 4px solid var(--highlight);
+  }
+  .flash.error {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border-color: rgba(229,57,53,.25);
+    border-left: 4px solid #E53935;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    /* layered shadow: spread + tight rim */
+    box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.04) inset;
+    border: 1px solid var(--card-border);
+  }
+  .card h2 {
+    font-size: .875rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-block;
+    padding: 10px 24px;
+    background: var(--accent-dark);
+    color: #E0F4FF;
+    border: none; border-radius: 6px;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; text-decoration: none;
+    transition: background .15s, transform .1s;
+    letter-spacing: .2px;
+  }
+  .btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--text-muted);
+  }
+  .btn-outline:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-faint);
+    transform: none;
+  }
+  .btn-cyan {
+    background: transparent;
+    border: 1px solid var(--highlight);
+    color: var(--highlight);
+  }
+  .btn-cyan:hover { background: var(--highlight); color: #001820; }
+
+  /* ── Leaderboard ── */
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: transparent;
+    color: var(--text-muted);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+  tbody tr:hover { background: rgba(41,182,246,.05); }
+  tbody td { padding: 13px 14px; font-size: 14px; }
+  .rank { font-weight: 700; color: var(--text-muted); text-align: center; }
+  .rank-1 { color: #F5C842; font-size: 18px; }
+  .rank-2 { color: #78909C; font-size: 17px; }
+  .rank-3 { color: #8D6E63; font-size: 16px; }
+  .pts { font-weight: 800; color: var(--accent); font-size: 17px; }
+  .you { background: rgba(41,182,246,.07); }
+
+  /* ── Match card ── */
+  .match-card {
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--inset-bg);
+    transition: border-color .15s;
+  }
+  .match-card:hover { border-color: var(--accent-dark); }
+  .teams { flex: 1; font-weight: 600; font-size: 14.5px; color: var(--text-strong); }
+  .date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .score-inputs { display: flex; align-items: center; gap: 6px; }
+  .score-inputs input {
+    width: 44px; height: 36px;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    text-align: center;
+    font-size: 17px; font-weight: 700;
+    background: #040C16;
+    color: var(--accent);
+    outline: none;
+    transition: border-color .15s;
+    /* remove spinners */
+    -moz-appearance: textfield;
+  }
+  .score-inputs input::-webkit-outer-spin-button,
+  .score-inputs input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .score-inputs input:focus { border-color: var(--highlight); box-shadow: 0 0 0 2px rgba(0,172,193,.15); }
+  .dash { font-size: 18px; color: var(--text-muted); }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 700;
+    background: var(--accent-faint);
+    color: var(--accent);
+    border: 1px solid rgba(41,182,246,.25);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 640px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    nav a { padding: .6rem .6rem; font-size: 12.5px; }
+  }
+
+  .theme-label {
+    background: #040E18;
+    color: var(--highlight);
+    text-align: center;
+    padding: 8px;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: .8px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  /* stat pill row */
+  .stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-pill {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 14px 20px;
+    flex: 1;
+    min-width: 110px;
+    text-align: center;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  }
+  .stat-pill .num { font-size: 28px; font-weight: 800; color: var(--accent); }
+  .stat-pill .lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; margin-top: 2px; }
+
+  /* divider rule within cards */
+  hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<div class="theme-label">🎨 Variant C – Ocean Deep (full dark mode)</div>
+
+<header>
+  <div class="logo">⚽</div>
+  <div>
+    <h1>Stora Hults VM Tips</h1>
+    <div class="tagline">VM 2026 · Familjetävling</div>
+  </div>
+</header>
+
+<nav>
+  <a href="#">🏠 Hem</a>
+  <a href="#" class="active">🏆 Topplista</a>
+  <a href="#">✏️ Tippa</a>
+  <a href="#">📊 Resultat</a>
+  <a href="#">🚪 Logga ut</a>
+  <span class="spacer"></span>
+</nav>
+
+<div class="container">
+
+  <div class="flash success">Välkommen tillbaka, Jonas! 👋</div>
+
+  <div class="stats">
+    <div class="stat-pill">
+      <div class="num">42</div>
+      <div class="lbl">Dina poäng</div>
+    </div>
+    <div class="stat-pill">
+      <div class="num">#1</div>
+      <div class="lbl">Placering</div>
+    </div>
+    <div class="stat-pill">
+      <div class="num">14</div>
+      <div class="lbl">Rätt tips</div>
+    </div>
+    <div class="stat-pill">
+      <div class="num">3</div>
+      <div class="lbl">Dagar till deadline</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <div class="card">
+      <h2>🏆 Topplista</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Namn</th><th>Poäng</th><th>Rätt</th></tr>
+        </thead>
+        <tbody>
+          <tr class="you">
+            <td class="rank rank-1">🥇</td>
+            <td><strong style="color:var(--text-strong)">Jonas</strong> <span class="badge">Du</span></td>
+            <td class="pts">42</td>
+            <td>14</td>
+          </tr>
+          <tr>
+            <td class="rank rank-2">🥈</td>
+            <td>Anna</td>
+            <td class="pts">38</td>
+            <td>12</td>
+          </tr>
+          <tr>
+            <td class="rank rank-3">🥉</td>
+            <td>Erik</td>
+            <td class="pts">35</td>
+            <td>11</td>
+          </tr>
+          <tr>
+            <td class="rank">4</td>
+            <td>Maria</td>
+            <td class="pts">30</td>
+            <td>10</td>
+          </tr>
+          <tr>
+            <td class="rank">5</td>
+            <td>Lars</td>
+            <td class="pts">27</td>
+            <td>9</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>✏️ Dina tips – Kvartsfinaler</h2>
+
+      <div class="match-card">
+        <div style="flex:1">
+          <div class="teams">🇧🇷 Brasilien – 🇦🇷 Argentina</div>
+          <div class="date">Fre 10 jul · 21:00</div>
+        </div>
+        <div class="score-inputs">
+          <input type="number" min="0" value="2">
+          <span class="dash">–</span>
+          <input type="number" min="0" value="1">
+        </div>
+      </div>
+
+      <div class="match-card">
+        <div style="flex:1">
+          <div class="teams">🇫🇷 Frankrike – 🇩🇪 Tyskland</div>
+          <div class="date">Lör 11 jul · 18:00</div>
+        </div>
+        <div class="score-inputs">
+          <input type="number" min="0" value="">
+          <span class="dash">–</span>
+          <input type="number" min="0" value="">
+        </div>
+      </div>
+
+      <div class="match-card">
+        <div style="flex:1">
+          <div class="teams">🏴󠁧󠁢󠁥󠁮󠁧󠁿 England – 🇵🇹 Portugal</div>
+          <div class="date">Lör 11 jul · 21:00</div>
+        </div>
+        <div class="score-inputs">
+          <input type="number" min="0" value="">
+          <span class="dash">–</span>
+          <input type="number" min="0" value="">
+        </div>
+      </div>
+
+      <button class="btn" style="width:100%; margin-top:14px">Spara tips</button>
+    </div>
+
+  </div>
+
+  <div class="card">
+    <h2>Knappar &amp; element</h2>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+      <button class="btn">Primär knapp</button>
+      <button class="btn btn-cyan">Accent cyan</button>
+      <button class="btn btn-outline">Sekundär</button>
+      <span class="badge">Grupp A</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Activity — Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+.activity-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+@media (max-width: 768px) {
+    .activity-grid { grid-template-columns: 1fr; }
+}
+.mini-table { width: 100%; font-size: 0.875rem; }
+.mini-table th { text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--border); }
+.mini-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.dot-online {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #2ecc71;
+    margin-right: 6px;
+}
+.log-path { color: #666; font-family: monospace; font-size: 0.82rem; }
+.log-time { color: #888; font-size: 0.82rem; white-space: nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h2>Activity Monitor</h2>
+        <a href="/backstage" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">← Dashboard</a>
+    </div>
+
+    <div class="activity-grid">
+        <div>
+            <h3>Active today ({{ active_today|length }})</h3>
+            {% if active_today %}
+            <table class="mini-table">
+                <thead><tr><th>User</th><th>Last seen</th></tr></thead>
+                <tbody>
+                {% for user in active_today %}
+                <tr>
+                    <td><span class="dot-online"></span>{{ user.name }}</td>
+                    <td class="log-time">
+                        <span class="local-time" data-utc="{{ user.last_active_at.strftime('%Y-%m-%dT%H:%M:00Z') }}">{{ user.last_active_at.strftime('%H:%M') }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:#888;">No activity today yet.</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <h3>Popular pages (24h)</h3>
+            {% if popular_pages %}
+            <table class="mini-table">
+                <thead><tr><th>Page</th><th>Views</th></tr></thead>
+                <tbody>
+                {% for path, hits in popular_pages %}
+                <tr>
+                    <td class="log-path">{{ path }}</td>
+                    <td>{{ hits }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:#888;">No data yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="activity-grid">
+        <div>
+            <h3>User activity (24h)</h3>
+            {% if user_activity %}
+            <table class="mini-table">
+                <thead><tr><th>User</th><th>Page views</th></tr></thead>
+                <tbody>
+                {% for name, views in user_activity %}
+                <tr>
+                    <td>{{ name }}</td>
+                    <td>{{ views }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:#888;">No data yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Recent page views</h3>
+    <table class="mini-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Page</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log, user in recent_views %}
+            <tr>
+                <td class="log-time">
+                    <span class="local-time" data-utc="{{ log.timestamp.strftime('%Y-%m-%dT%H:%M:00Z') }}">{{ log.timestamp.strftime('%d %b %H:%M') }}</span>
+                </td>
+                <td>{{ user.name if user else '—' }}</td>
+                <td class="log-path">{{ log.path }}</td>
+                <td>{{ log.status_code }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

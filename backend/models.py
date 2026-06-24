@@ -1,5 +1,5 @@
 """Database models for VM Tips application"""
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from datetime import datetime
@@ -23,6 +23,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    last_login_at = Column(DateTime, nullable=True)
+    last_active_at = Column(DateTime, nullable=True)
 
     # Relationships
     predictions = relationship('Prediction', back_populates='user', cascade='all, delete-orphan')
@@ -141,6 +143,23 @@ class Invite(Base):
         return f'<Invite from={self.sender_id} to={self.recipient_email}>'
 
 
+class ActivityLog(Base):
+    """Tracks page views per user for monitoring app usage"""
+    __tablename__ = 'activity_log'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    path = Column(String(500), nullable=False)
+    method = Column(String(10), nullable=False, default='GET')
+    status_code = Column(Integer, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(Text, nullable=True)
+
+    def __repr__(self):
+        return f'<ActivityLog user={self.user_id} {self.method} {self.path}>'
+
+
 class RoundDeadline(Base):
     """Deadlines for each round"""
     __tablename__ = 'round_deadlines'
@@ -162,13 +181,24 @@ class RoundDeadline(Base):
 def init_db():
     """Initialize the database - create all tables and run migrations"""
     from sqlalchemy import text
-    Base.metadata.create_all(engine)
+    from sqlalchemy.exc import OperationalError
+    try:
+        Base.metadata.create_all(engine)
+    except OperationalError:
+        pass  # Race between gunicorn workers — table already created
     with engine.connect() as conn:
-        # Migration: add password_hash column if it doesn't exist yet
+        # Migration: add columns if they don't exist yet
         user_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
         if 'password_hash' not in user_cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
             conn.commit()
+        if 'last_login_at' not in user_cols:
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN last_login_at DATETIME"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN last_active_at DATETIME"))
+                conn.commit()
+            except OperationalError:
+                pass  # Already added by another worker
 
 
 def get_db():

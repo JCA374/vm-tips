@@ -1,27 +1,39 @@
-That's a bright **magenta-pink** color from the sports bib in your image. Based on the shade, here are some hex color values you could use:
+jonas@jonas-HP-EliteBook-830-G5:~/Code/sport/vm$ ssh-keyscan 178.128.254.166 >> ~/.ssh/known_hosts
+# 178.128.254.166:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.13
+# 178.128.254.166:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.13
+# 178.128.254.166:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.13
+# 178.128.254.166:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.13
+# 178.128.254.166:22 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.13
+jonas@jonas-HP-EliteBook-830-G5:~/Code/sport/vm$ ssh root@178.128.254.166 
+Welcome to Ubuntu 24.04.3 LTS (GNU/Linux 6.8.0-71-generic x86_64)
 
-**Primary match:**
-- `#E91E63` – Vibrant magenta-pink (Google Material Design Pink)
-- `#FF1493` – Deep pink alternative
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
 
-**Close variations if you want to fine-tune:**
-- `#EC407A` – Slightly lighter/softer
-- `#F06292` – Even lighter version
-- `#C2185B` – Darker/deeper version
+ System information as of Wed Apr 15 17:25:52 UTC 2026
 
-**For web use, I'd recommend:**
-```css
-/* Exact color from bib */
-color: #E91E63;
+  System load:  0.08              Processes:             100
+  Usage of /:   8.3% of 23.17GB   Users logged in:       0
+  Memory usage: 20%               IPv4 address for eth0: 178.128.254.166
+  Swap usage:   0%                IPv4 address for eth0: 10.18.0.5
 
-/* Or as RGB */
-color: rgb(233, 30, 99);
-```
+Expanded Security Maintenance for Applications is not enabled.
 
-**Pro tips for your homepage:**
-- Test on both light and dark backgrounds—this pink has high saturation and works best as an accent
-- For text, ensure sufficient contrast for readability (use it on white/light backgrounds)
-- Use sparingly as a highlight color rather than covering large areas
-- Pairs well with white, gray, or navy backgrounds
+160 updates can be applied immediately.
+107 of these updates are standard security updates.
+To see these additional updates run: apt list --upgradable
 
-Would you like me to suggest complementary colors or help you design a color palette around this pink?
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+
+The programs included with the Ubuntu system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
+applicable law.
+
+root@ubuntu-s-1vcpu-1gb-ams3:~# 

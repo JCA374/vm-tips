@@ -40,6 +40,7 @@
                 <th>Role</th>
                 <th>Predictions</th>
                 <th>Points</th>
+                <th>Last seen</th>
                 <th>Joined</th>
                 <th>Actions</th>
             </tr>
@@ -58,6 +59,13 @@
                 </td>
                 <td>{{ pred_count }}</td>
                 <td>{{ total_points or 0 }}</td>
+                <td>
+                    {% if user.last_active_at %}
+                    <span class="local-time" data-utc="{{ user.last_active_at.strftime('%Y-%m-%dT%H:%M:00Z') }}">{{ user.last_active_at.strftime('%d %b %H:%M') }}</span>
+                    {% else %}
+                    <span style="color:#999;">—</span>
+                    {% endif %}
+                </td>
                 <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
                 <td style="white-space:nowrap;">
                     <form method="POST" action="/backstage/users/{{ user.id }}/toggle-admin" style="display:inline;">

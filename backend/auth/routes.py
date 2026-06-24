@@ -13,11 +13,23 @@ auth_bp = Blueprint('auth', __name__)
 def _start_session(user, remember=False):
     """Set session variables after a successful login"""
     from backend import config
+    from datetime import datetime
+    from backend.models import User, SessionLocal
     session.permanent = remember
     session['user_id']    = user['id']
     session['user_email'] = user['email']
     session['user_name']  = user['name']
     session['is_admin']   = user['email'] == config.ADMIN_EMAIL
+    # Track login time
+    try:
+        db = SessionLocal()
+        db_user = db.query(User).get(user['id'])
+        if db_user:
+            db_user.last_login_at = datetime.utcnow()
+            db.commit()
+        db.close()
+    except Exception:
+        pass
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])

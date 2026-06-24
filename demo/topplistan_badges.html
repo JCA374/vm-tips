@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topplistan — Storahults VM</title>
+    <style>
+        :root {
+            --accent:       #1565C0;
+            --accent-dark:  #0D47A1;
+            --accent-light: #3D90D4;
+            --accent-faint: #D8E8F6;
+            --header-bg:    #0A1C2E;
+            --highlight:    #0097A7;
+            --text:         #1A1A2E;
+            --text-muted:   #4A6070;
+            --bg:           #E2E7EC;
+            --card-bg:      #F4F7FA;
+            --border:       #C4CDD6;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            font-size: 17px;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--bg);
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+        header {
+            background: var(--header-bg);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 3px solid var(--highlight);
+        }
+        header .logo { font-size: 25px; line-height: 1; }
+        header h1 { font-size: 21px; font-weight: 700; }
+        header .tagline { font-size: 13px; opacity: .5; text-transform: uppercase; letter-spacing: .7px; margin-top: 2px; }
+
+        nav {
+            background: var(--header-bg);
+            padding: 0 12px;
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+        }
+        nav a {
+            color: rgba(255,255,255,.82);
+            text-decoration: none;
+            padding: .65rem .9rem;
+            font-size: 17px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -1px;
+        }
+        nav a.active { color: #00C8DC; border-bottom-color: #00C8DC; }
+
+        .card {
+            background: var(--card-bg);
+            padding: 24px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(10,28,46,.10);
+            border: 1px solid var(--border);
+        }
+        .card h2 {
+            font-size: 25px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--accent-dark);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        th, td {
+            padding: 11px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: var(--accent-dark);
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+        tr:hover { background: var(--accent-faint); }
+
+        /* ── Rank styling ── */
+        .rank-1 { background: var(--accent-faint); font-weight: 700; }
+        .rank-cell { font-weight: 700; font-size: 18px; min-width: 32px; }
+
+        /* ── Badges ── */
+        .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 1px 7px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .2px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .badge-winner {
+            background: #EAD98B;
+            color: #5C4A00;
+            border: 1px solid #D4C36E;
+        }
+        .badge-icon { font-size: 11px; }
+
+        /* ── Name + badge layout ── */
+        .name-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .player-name { white-space: nowrap; }
+
+        /* ── Points column ── */
+        .pts { font-weight: 700; font-size: 19px; color: var(--accent-dark); }
+
+        /* ── Round breakdown columns ── */
+        .round-pts { text-align: center; font-size: 15px; }
+        .round-pts.best { color: var(--accent-dark); font-weight: 700; }
+        th.round-col { text-align: center; font-size: 13px; }
+
+        /* ── Legend ── */
+        .legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+
+        /* ── Demo banner ── */
+        .demo-banner {
+            background: #FFF8E1;
+            color: #6D4C00;
+            border: 1px solid #F9A825;
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        /* ── Mobile ── */
+        @media (max-width: 640px) {
+            header { padding: .65rem 12px; }
+            header h1 { font-size: 1.1rem; }
+            header .tagline { display: none; }
+            nav { padding: 0 4px; overflow-x: auto; flex-wrap: nowrap; }
+            nav a { padding: .55rem .65rem; font-size: 15px; white-space: nowrap; }
+            .container { padding: 12px 10px; }
+            .card { padding: 1rem; }
+            table { font-size: 15px; }
+            th, td { padding: 8px 6px; }
+            .badge { font-size: 10px; padding: 1px 5px; }
+            .name-cell { gap: 4px; }
+            .pts { font-size: 17px; }
+            .round-pts { font-size: 13px; }
+            th.round-col { font-size: 11px; }
+            h2 { font-size: 21px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <span class="logo">&#9917;</span>
+        <div>
+            <h1>Storahults VM</h1>
+            <div class="tagline">FIFA World Cup 2026</div>
+        </div>
+    </header>
+
+    <nav>
+        <a href="#">Idag</a>
+        <a href="#" class="active">Topplista</a>
+        <a href="#">Tippa</a>
+        <a href="#">Resultat</a>
+        <a href="#">Info</a>
+    </nav>
+
+    <div class="container">
+        <div class="demo-banner">DEMO &#8212; Mockup av topplistan med rundebadges</div>
+
+        <div class="card">
+            <h2>Topplista</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Namn</th>
+                        <th class="round-col">MD1</th>
+                        <th class="round-col">MD2</th>
+                        <th class="round-col">MD3</th>
+                        <th>Po&auml;ng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 1. Jonas — best in MD1 + MD2 -->
+                    <tr class="rank-1">
+                        <td class="rank-cell">1</td>
+                        <td>
+                            <div class="name-cell">
+                                <span class="player-name">Jonas</span>
+                                <div class="badges">
+                                    <span class="badge badge-winner"><span class="badge-icon">&#9733;</span> MD1</span>
+                                    <span class="badge badge-winner"><span class="badge-icon">&#9733;</span> MD2</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="round-pts best">12</td>
+                        <td class="round-pts best">11</td>
+                        <td class="round-pts">10</td>
+                        <td class="pts">33</td>
+                    </tr>
+
+                    <!-- 2. Rebecca — best in MD3 -->
+                    <tr class="rank-1">
+                        <td class="rank-cell">1</td>
+                        <td>
+                            <div class="name-cell">
+                                <span class="player-name">Rebecca</span>
+                                <div class="badges">
+                                    <span class="badge badge-winner"><span class="badge-icon">&#9733;</span> MD3</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="round-pts">10</td>
+                        <td class="round-pts">11</td>
+                        <td class="round-pts best">12</td>
+                        <td class="pts">33</td>
+                    </tr>
+
+                    <!-- 3. Stefan -->
+                    <tr>
+                        <td class="rank-cell">3</td>
+                        <td>
+                            <div class="name-cell">
+                                <span class="player-name">Stefan 110</span>
+                            </div>
+                        </td>
+                        <td class="round-pts">11</td>
+                        <td class="round-pts">8</td>
+                        <td class="round-pts">9</td>
+                        <td class="pts">28</td>
+                    </tr>
+
+                    <!-- 4. Edvin -->
+                    <tr>
+                        <td class="rank-cell">4</td>
+                        <td>
+                            <div class="name-cell">
+                                <span class="player-name">Edvin</span>
+                            </div>
+                        </td>
+                        <td class="round-pts">7</td>
+                        <td class="round-pts">11</td>
+                        <td class="round-pts">9</td>
+                        <td class="pts">27</td>
+                    </tr>
+
+                    <!-- 5. Sabina -->
+                    <tr>
+                        <td class="rank-cell">5</td>
+                        <td>
+                            <div class="name-cell">
+                                <span class="player-name">Sabina</span>
+                            </div>
+                        </td>
+                        <td class="round-pts">8</td>
+                        <td class="round-pts">10</td>
+                        <td class="round-pts">8</td>
+                        <td class="pts">26</td>
+                    </tr>
+
+                    <!-- 6. Anders -->
+                    <tr>
+                        <td class="rank-cell">6</td>
+                        <td>
+                            <div class="name-cell">
+                                <span class="player-name">Anders Jansson</span>
+                            </div>
+                        </td>
+                        <td class="round-pts">6</td>
+                        <td class="round-pts">9</td>
+                        <td class="round-pts">11</td>
+                        <td class="pts">26</td>
+                    </tr>
+
+                    <!-- 7. Tulla -->
+                    <tr>
+                        <td class="rank-cell">7</td>
+                        <td>
+                            <div class="name-cell">
+                                <span class="player-name">Tulla</span>
+                            </div>
+                        </td>
+                        <td class="round-pts">7</td>
+                        <td class="round-pts">8</td>
+                        <td class="round-pts">9</td>
+                        <td class="pts">24</td>
+                    </tr>
+
+                    <!-- 8. S & N -->
+                    <tr>
+                        <td class="rank-cell">8</td>
+                        <td>
+                            <div class="name-cell">
+                                <span class="player-name">S &amp; N</span>
+                            </div>
+                        </td>
+                        <td class="round-pts">5</td>
+                        <td class="round-pts">8</td>
+                        <td class="round-pts">10</td>
+                        <td class="pts">23</td>
+                    </tr>
+
+                    <!-- 9. Tommy -->
+                    <tr>
+                        <td class="rank-cell">9</td>
+                        <td>
+                            <div class="name-cell">
+                                <span class="player-name">Tommy</span>
+                            </div>
+                        </td>
+                        <td class="round-pts">6</td>
+                        <td class="round-pts">10</td>
+                        <td class="round-pts">5</td>
+                        <td class="pts">21</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="legend">
+                <div class="legend-item"><span class="badge badge-winner" style="font-size:10px;"><span class="badge-icon">&#9733;</span></span> B&auml;st i rundan</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

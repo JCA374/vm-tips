@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tema 2B – Ocean Slate</title>
+<style>
+  /*
+   * VARIANT B – SLATE MID-DARK
+   * The "sweet spot" between light and dark. Deep slate backgrounds
+   * make the navy header feel continuous. Cards lift slightly from
+   * the page surface. Cyan accents read clearly without harsh
+   * white contrast. Good for evening/indoor use.
+   */
+  :root {
+    --accent:       #4FC3F7;   /* sky blue — readable on dark */
+    --accent-dark:  #0288D1;
+    --accent-light: #81D4FA;
+    --accent-faint: rgba(79,195,247,.15);
+    --header-bg:    #07111C;
+    --nav-bg:       #0D1F30;
+    --highlight:    #00BCD4;
+    --text:         #D0DCE8;
+    --text-muted:   #7A9AB0;
+    --bg:           #112233;   /* deep ocean blue-slate */
+    --card-bg:      #172B3E;   /* slightly lighter card surface */
+    --border:       #1E3A50;
+    --success-bg:   rgba(0,188,212,.12);
+    --success-text: #80DEEA;
+    --error-bg:     rgba(239,83,80,.12);
+    --error-text:   #EF9A9A;
+    --input-bg:     #0E1F2D;
+  }
+
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--header-bg);
+    color: #C8D8E8;
+    padding: 0 20px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 3px solid var(--highlight);
+  }
+  header .logo { font-size: 1.6rem; }
+  header h1 { font-size: 1.2rem; font-weight: 700; color: #E0EAF4; }
+  header .tagline { font-size: 11px; opacity: .45; margin-top: 1px; text-transform: uppercase; letter-spacing: .8px; }
+
+  /* ── Nav ── */
+  nav {
+    background: var(--nav-bg);
+    padding: 0 12px;
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border);
+  }
+  nav a {
+    color: #8AAABB;
+    text-decoration: none;
+    padding: .65rem .9rem;
+    font-size: 13.5px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color .15s, background .15s;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+  }
+  nav a:hover  { color: var(--text); background: rgba(255,255,255,.04); }
+  nav a.active { color: var(--highlight); border-bottom-color: var(--highlight); }
+  nav .spacer  { flex: 1; }
+
+  /* ── Container ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+  /* ── Flash ── */
+  .flash {
+    padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;
+    font-size: 14px;
+  }
+  .flash.success { background: var(--success-bg); color: var(--success-text); border-left: 4px solid var(--highlight); }
+  .flash.error   { background: var(--error-bg);   color: var(--error-text);   border-left: 4px solid #EF5350; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.3), 0 1px 4px rgba(0,0,0,.2);
+    border: 1px solid var(--border);
+  }
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-block;
+    padding: 10px 24px;
+    background: var(--accent-dark);
+    color: #E8F4FF;
+    border: none; border-radius: 6px;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; text-decoration: none;
+    transition: opacity .15s, transform .1s;
+    letter-spacing: .2px;
+  }
+  .btn:hover { opacity: .85; transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-faint); transform: none; opacity: 1; }
+  .btn-cyan {
+    background: var(--highlight);
+    color: #001820;
+  }
+  .btn-cyan:hover { opacity: .85; }
+
+  /* ── Leaderboard ── */
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: #0C1A26;
+    color: #8AAABB;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    border-bottom: 1px solid var(--border);
+  }
+  thead th:first-child { border-radius: 6px 0 0 0; }
+  thead th:last-child  { border-radius: 0 6px 0 0; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+  tbody tr:hover { background: rgba(79,195,247,.06); }
+  tbody td { padding: 13px 14px; font-size: 14px; }
+  .rank { font-weight: 700; color: var(--text-muted); text-align: center; }
+  .rank-1 { color: #F5C842; font-size: 19px; }
+  .rank-2 { color: #90A4AE; font-size: 17px; }
+  .rank-3 { color: #A1887F; font-size: 16px; }
+  .pts { font-weight: 800; color: var(--accent); font-size: 17px; }
+  .you { background: var(--accent-faint); }
+
+  /* ── Match card ── */
+  .match-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--input-bg);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .match-card:hover { border-color: var(--accent-dark); box-shadow: 0 2px 8px rgba(2,136,209,.15); }
+  .teams { flex: 1; font-weight: 600; font-size: 14.5px; color: var(--text); }
+  .date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .score-inputs { display: flex; align-items: center; gap: 6px; }
+  .score-inputs input {
+    width: 44px; height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    text-align: center;
+    font-size: 17px; font-weight: 700;
+    background: #0A1825;
+    color: var(--accent-light);
+    outline: none; transition: border-color .15s;
+  }
+  .score-inputs input:focus { border-color: var(--highlight); }
+  .dash { font-size: 18px; color: var(--text-muted); }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    background: var(--accent-faint);
+    color: var(--accent);
+    border: 1px solid rgba(79,195,247,.3);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 640px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    nav a { padding: .6rem .6rem; font-size: 12.5px; }
+  }
+
+  .theme-label {
+    background: #0C2030;
+    color: var(--highlight);
+    text-align: center;
+    padding: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: .5px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* stat pill row */
+  .stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-pill {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 14px 20px;
+    flex: 1;
+    min-width: 110px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    border: 1px solid var(--border);
+  }
+  .stat-pill .num { font-size: 28px; font-weight: 800; color: var(--accent); }
+  .stat-pill .lbl { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+</style>
+</head>
+<body>
+
+<div class="theme-label">🎨 VARIANT B – OCEAN SLATE (djup blå-slate, halvmörk)</div>
+
+<header>
+  <div class="logo">⚽</div>
+  <div>
+    <h1>Stora Hults VM Tips</h1>
+    <div class="tagline">VM 2026 · Familjetävling</div>
+  </div>
+</header>
+
+<nav>
+  <a href="#">🏠 Hem</a>
+  <a href="#" class="active">🏆 Topplista</a>
+  <a href="#">✏️ Tippa</a>
+  <a href="#">📊 Resultat</a>
+  <a href="#">🚪 Logga ut</a>
+  <span class="spacer"></span>
+</nav>
+
+<div class="container">
+
+  <div class="flash success">Välkommen tillbaka, Jonas! 👋</div>
+
+  <div class="stats">
+    <div class="stat-pill">
+      <div class="num">42</div>
+      <div class="lbl">Dina poäng</div>
+    </div>
+    <div class="stat-pill">
+      <div class="num">#1</div>
+      <div class="lbl">Placering</div>
+    </div>
+    <div class="stat-pill">
+      <div class="num">14</div>
+      <div class="lbl">Rätt tips</div>
+    </div>
+    <div class="stat-pill">
+      <div class="num">3</div>
+      <div class="lbl">Dagar till deadline</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <div class="card">
+      <h2>🏆 Topplista</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Namn</th><th>Poäng</th><th>Rätt</th></tr>
+        </thead>
+        <tbody>
+          <tr class="you">
+            <td class="rank rank-1">🥇</td>
+            <td><strong>Jonas</strong> <span class="badge">Du</span></td>
+            <td class="pts">42</td>
+            <td>14</td>
+          </tr>
+          <tr>
+            <td class="rank rank-2">🥈</td>
+            <td>Anna</td>
+            <td class="pts">38</td>
+            <td>12</td>
+          </tr>
+          <tr>
+            <td class="rank rank-3">🥉</td>
+            <td>Erik</td>
+            <td class="pts">35</td>
+            <td>11</td>
+          </tr>
+          <tr>
+            <td class="rank">4</td>
+            <td>Maria</td>
+            <td class="pts">30</td>
+            <td>10</td>
+          </tr>
+          <tr>
+            <td class="rank">5</td>
+            <td>Lars</td>
+            <td class="pts">27</td>
+            <td>9</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>✏️ Dina tips – Kvartsfinaler</h2>
+
+      <div class="match-card">
+        <div style="flex:1">
+          <div class="teams">🇧🇷 Brasilien – 🇦🇷 Argentina</div>
+          <div class="date">Fre 10 jul · 21:00</div>
+        </div>
+        <div class="score-inputs">
+          <input type="number" min="0" value="2">
+          <span class="dash">–</span>
+          <input type="number" min="0" value="1">
+        </div>
+      </div>
+
+      <div class="match-card">
+        <div style="flex:1">
+          <div class="teams">🇫🇷 Frankrike – 🇩🇪 Tyskland</div>
+          <div class="date">Lör 11 jul · 18:00</div>
+        </div>
+        <div class="score-inputs">
+          <input type="number" min="0" value="">
+          <span class="dash">–</span>
+          <input type="number" min="0" value="">
+        </div>
+      </div>
+
+      <div class="match-card">
+        <div style="flex:1">
+          <div class="teams">🏴󠁧󠁢󠁥󠁮󠁧󠁿 England – 🇵🇹 Portugal</div>
+          <div class="date">Lör 11 jul · 21:00</div>
+        </div>
+        <div class="score-inputs">
+          <input type="number" min="0" value="">
+          <span class="dash">–</span>
+          <input type="number" min="0" value="">
+        </div>
+      </div>
+
+      <button class="btn btn-cyan" style="width:100%; margin-top:14px">Spara tips</button>
+    </div>
+
+  </div>
+
+  <div class="card">
+    <h2>Knappar &amp; element</h2>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+      <button class="btn">Primär knapp</button>
+      <button class="btn btn-cyan">Accent cyan</button>
+      <button class="btn btn-outline">Sekundär</button>
+      <span class="badge">Grupp A</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 """Application factory for VM Tips."""
-from flask import Flask, render_template, redirect, url_for, session
-from datetime import timedelta
+from flask import Flask, render_template, redirect, url_for, session, request, g
+from datetime import datetime, timedelta
 import os
 import logging
 from dotenv import load_dotenv
@@ -68,6 +68,48 @@ def create_app(config_override=None):
         from frontend.translations import TRANSLATIONS
         lang = session.get('lang', 'sv')
         return TRANSLATIONS[lang]['countries'].get(name, name)
+
+    # --- Activity tracking ---
+    SKIP_PATHS = {'/static', '/health', '/favicon.ico'}
+
+    @app.before_request
+    def track_activity():
+        """Update last_active_at and log the request"""
+        if any(request.path.startswith(p) for p in SKIP_PATHS):
+            return
+        g.track_user_id = session.get('user_id')
+
+    @app.after_request
+    def log_activity(response):
+        """Write activity log entry after the response is ready"""
+        if any(request.path.startswith(p) for p in SKIP_PATHS):
+            return response
+        user_id = getattr(g, 'track_user_id', None)
+        try:
+            from backend.models import ActivityLog, User, SessionLocal
+            db = SessionLocal()
+            # Log the page view
+            entry = ActivityLog(
+                user_id=user_id,
+                path=request.path,
+                method=request.method,
+                status_code=response.status_code,
+                ip_address=request.remote_addr,
+                user_agent=str(request.user_agent)[:500] if request.user_agent else None,
+            )
+            db.add(entry)
+            # Update last_active_at (throttle: only if >60s since last update)
+            if user_id:
+                user = db.query(User).get(user_id)
+                if user:
+                    now = datetime.utcnow()
+                    if not user.last_active_at or (now - user.last_active_at).total_seconds() > 60:
+                        user.last_active_at = now
+            db.commit()
+            db.close()
+        except Exception:
+            logging.exception('Failed to log activity')
+        return response
 
     @app.route('/lang/<code>')
     def set_language(code):
