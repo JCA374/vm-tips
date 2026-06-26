@@ -99,15 +99,18 @@ def sync_matches(competition_id=2000):
             existing = db.query(Match).filter_by(external_id=external_id).first()
 
             # Skip matches that don't need updating:
-            # - Future matches (not started yet, no results to collect)
             # - Matches older than 2 days that are already finished in our DB
+            # - Future unfinished matches where team names haven't changed
             if existing:
-                if match_date > now and not finished:
-                    skipped += 1
-                    continue
                 if existing.finished and match_date < cutoff:
                     skipped += 1
                     continue
+                if match_date > now and not finished:
+                    # Still update if team names changed (TBD → real team)
+                    teams_changed = (existing.home_team != home_team or existing.away_team != away_team)
+                    if not teams_changed:
+                        skipped += 1
+                        continue
 
             if finished:
                 score = match_data['score']
@@ -155,6 +158,51 @@ def sync_matches(competition_id=2000):
             'skipped': skipped,
             'total': synced + updated
         }
+
+    except Exception as e:
+        db.rollback()
+        return {'status': 'error', 'message': str(e)}
+    finally:
+        db.close()
+
+
+def sync_tbd_teams(competition_id=2000):
+    """Fetch team names for upcoming matches that still have TBD teams"""
+    client = FootballAPIClient()
+    data = client.get_competition_matches(competition_id)
+
+    if not data or 'matches' not in data:
+        return {'status': 'error', 'message': 'Failed to fetch matches'}
+
+    db = SessionLocal()
+    updated = 0
+
+    try:
+        for match_data in data['matches']:
+            stage = match_data.get('stage', '')
+            matchday = match_data.get('matchday')
+            round_name = map_stage_to_round(stage, matchday)
+            if not round_name:
+                continue
+
+            external_id = match_data['id']
+            home_team = match_data['homeTeam']['name'] or 'TBD'
+            away_team = match_data['awayTeam']['name'] or 'TBD'
+
+            existing = db.query(Match).filter_by(external_id=external_id).first()
+            if not existing:
+                continue
+
+            # Only update matches that still have TBD and API now has real names
+            if (existing.home_team == 'TBD' and home_team != 'TBD') or \
+               (existing.away_team == 'TBD' and away_team != 'TBD'):
+                existing.home_team = home_team
+                existing.away_team = away_team
+                existing.updated_at = datetime.utcnow()
+                updated += 1
+
+        db.commit()
+        return {'status': 'success', 'updated': updated}
 
     except Exception as e:
         db.rollback()

@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from functools import wraps
 from datetime import datetime
 from backend.models import User, Match, Prediction, RoundDeadline, Invite, ActivityLog, SessionLocal
-from backend.match_data.service import sync_matches, update_match_results
+from backend.match_data.service import sync_matches, update_match_results, sync_tbd_teams
 from backend.prediction.service import calculate_all_scores
 from backend import config
 
@@ -265,6 +265,21 @@ def reminders():
     return render_template('admin/reminders.html', entries=entries)
 
 
+@admin_bp.route('/sync-tbd', methods=['POST'])
+@require_admin
+def sync_tbd_route():
+    """Update TBD team names for upcoming knockout matches"""
+    result = sync_tbd_teams()
+    if result['status'] == 'success':
+        if result['updated'] > 0:
+            flash(f"Updated {result['updated']} match(es) with confirmed teams.")
+        else:
+            flash("No new teams to fill in — all still TBD on the API side.")
+    else:
+        flash(f"Error: {result.get('message', 'Unknown error')}", 'error')
+    return redirect(url_for('admin.status'))
+
+
 @admin_bp.route('/sync-matches', methods=['POST'])
 @require_admin
 def sync_matches_route():
@@ -277,10 +292,22 @@ def sync_matches_route():
     return redirect(url_for('admin.status'))
 
 
+@admin_bp.route('/update-results', methods=['POST'])
+@require_admin
+def update_results_route():
+    """Fetch results for unfinished matches and recalculate scores"""
+    result = update_match_results()
+    if result['status'] == 'success':
+        scores = calculate_all_scores()
+        flash(f"Checked unfinished matches — {result['updated']} new result(s) fetched. {scores.get('updated', 0)} predictions recalculated.")
+    else:
+        flash(f"Error fetching results: {result.get('message', 'Unknown error')}", 'error')
+    return redirect(url_for('admin.status'))
+
+
 @admin_bp.route('/calculate-scores', methods=['POST'])
 @require_admin
 def calculate_scores_route():
-    update_match_results()
     result = calculate_all_scores()
     if result['status'] == 'success':
         flash(f"Calculated scores for {result['updated']} predictions.")

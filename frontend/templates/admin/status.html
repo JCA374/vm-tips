@@ -38,8 +38,11 @@
     </div>
 
     <div class="action-row">
+        <form method="POST" action="/backstage/sync-tbd">
+            <button type="submit" class="btn">Fill in TBD teams</button>
+        </form>
         <form method="POST" action="/backstage/sync-matches">
-            <button type="submit" class="btn">Sync matches from API</button>
+            <button type="submit" class="btn btn-secondary">Sync all matches</button>
         </form>
         <form method="POST" action="/backstage/calculate-scores">
             <button type="submit" class="btn btn-secondary">Recalculate scores</button>
