@@ -17,14 +17,14 @@ _last_refresh = {'time': None}
 REFRESH_COOLDOWN = 300  # 5 minutes
 
 ROUNDS = [
-    ('group_md1',   'Round 1'),
-    ('group_md2',   'Round 2'),
-    ('group_md3',   'Round 3'),
-    ('round_of_32', 'Round of 32'),
-    ('round_of_16', 'Round of 16'),
-    ('quarter_final', 'Quarter Finals'),
-    ('semi_final',  'Semi Finals'),
-    ('third_place', 'Third Place'),
+    ('group_md1',   'Omgång 1'),
+    ('group_md2',   'Omgång 2'),
+    ('group_md3',   'Omgång 3'),
+    ('round_of_32', 'Sextondelsfinal'),
+    ('round_of_16', 'Åttondelsfinal'),
+    ('quarter_final', 'Kvartsfinal'),
+    ('semi_final',  'Semifinal'),
+    ('third_place', 'Bronsmatch'),
     ('final',       'Final'),
 ]
 
