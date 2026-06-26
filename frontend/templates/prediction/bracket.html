@@ -8,44 +8,42 @@
     -webkit-overflow-scrolling: touch;
     padding: 4px 0 12px;
 }
-
-/* ── Half bracket (one side) ── */
-.bracket-half {
+.bracket {
     display: flex;
-    gap: 6px;
-    margin-bottom: 24px;
+    align-items: stretch;
+    min-width: 880px;
+    justify-content: center;
 }
-.bracket-half.right {
-    flex-direction: row-reverse;
-}
-.bracket-round {
+.bracket-col {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
-    min-width: 165px;
     flex: 1;
+    min-width: 0;
+    padding: 0 2px;
 }
 
 .round-label {
     text-align: center;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: .6px;
+    letter-spacing: .5px;
     color: var(--accent-dark);
-    margin-bottom: 4px;
-    padding: 3px 0;
+    margin-bottom: 3px;
+    padding: 2px 0;
     background: var(--accent-faint);
     border-radius: 4px;
+    white-space: nowrap;
 }
 
-/* ── Match card ── */
+/* Match card */
 .b-match {
     background: white;
     border: 1px solid var(--border);
-    border-radius: 6px;
-    margin: 3px 0;
-    font-size: 0.82rem;
+    border-radius: 5px;
+    margin: 2px 0;
+    font-size: 0.76rem;
     overflow: hidden;
 }
 .b-match.finished {
@@ -57,15 +55,15 @@
 .b-team {
     display: flex;
     align-items: center;
-    padding: 4px 8px;
-    gap: 5px;
-    min-height: 26px;
+    padding: 2px 5px;
+    gap: 3px;
+    min-height: 22px;
 }
 .b-team + .b-team {
     border-top: 1px solid #eee;
 }
 .b-flag {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     line-height: 1;
     flex-shrink: 0;
 }
@@ -75,7 +73,7 @@
     text-overflow: ellipsis;
     flex: 1;
     font-weight: 500;
-    font-size: 0.8rem;
+    font-size: 0.73rem;
 }
 .b-team-name.tbd {
     color: var(--text-muted);
@@ -84,10 +82,10 @@
 }
 .b-score {
     font-weight: 700;
-    min-width: 14px;
+    min-width: 12px;
     text-align: center;
     color: var(--accent-dark);
-    font-size: 0.82rem;
+    font-size: 0.78rem;
 }
 .b-team.winner {
     background: #e8f5e9;
@@ -96,40 +94,28 @@
     font-weight: 700;
 }
 
-/* ── Final section ── */
-.final-section {
+/* Center column */
+.center-col {
     display: flex;
-    gap: 24px;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 24px;
+    gap: 12px;
+    min-width: 130px;
+    max-width: 150px;
+    padding: 0 4px;
 }
-.final-box {
-    min-width: 200px;
-    text-align: center;
-}
-.final-label {
-    font-size: 0.8rem;
+.center-label {
+    font-size: 0.72rem;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .6px;
-    color: var(--accent-dark);
-    margin-bottom: 6px;
-    padding: 4px 12px;
-    background: var(--accent-faint);
-    border-radius: 4px;
-    display: inline-block;
-}
-
-/* ── Section headers ── */
-.half-label {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: .5px;
-    margin-bottom: 6px;
-    padding-left: 4px;
+    color: var(--accent-dark);
+    text-align: center;
+    margin-bottom: 2px;
+    padding: 2px 8px;
+    background: var(--accent-faint);
+    border-radius: 4px;
 }
 
 .bracket-empty {
@@ -139,10 +125,10 @@
 }
 
 @media (max-width: 640px) {
-    .bracket-round { min-width: 140px; }
-    .b-team-name { font-size: 0.75rem; }
-    .b-team { padding: 3px 6px; }
-    .final-section { gap: 12px; }
+    .b-team-name { font-size: 0.68rem; }
+    .b-team { padding: 2px 4px; gap: 2px; }
+    .b-flag { font-size: 0.78rem; }
+    .round-label { font-size: 0.62rem; }
 }
 </style>
 {% endblock %}
@@ -166,18 +152,6 @@
 </div>
 {% endmacro %}
 
-{# ── Render a row of rounds (one half of the bracket) ── #}
-{% macro render_half(rounds) %}
-{% for round_label, matches in rounds %}
-{% if matches %}
-<div class="bracket-round">
-    <div class="round-label">{{ round_label }}</div>
-    {% for m in matches %}{{ render_match(m) }}{% endfor %}
-</div>
-{% endif %}
-{% endfor %}
-{% endmacro %}
-
 <div class="card">
     <h2>{{ t.get('nav_bracket', 'Slutspel') }}</h2>
 
@@ -194,50 +168,83 @@
     </div>
     {% else %}
 
-    {# ── FINAL + BRONZE in the center ── #}
-    {% if fin or tp %}
-    <div class="final-section">
-        {% if fin %}
-        <div class="final-box">
-            <div class="final-label">Final</div>
-            {% for m in fin %}{{ render_match(m, is_final=true) }}{% endfor %}
-        </div>
-        {% endif %}
-        {% if tp %}
-        <div class="final-box">
-            <div class="final-label">Brons</div>
-            {% for m in tp %}{{ render_match(m) }}{% endfor %}
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    {# ── UPPER HALF: left side of bracket ── #}
-    <div class="half-label">Övre halvan</div>
     <div class="bracket-wrap">
-        <div class="bracket-half">
-            {{ render_half([
-                ('32-del', r32[:8]),
-                ('16-del', r16[:4]),
-                ('Kvart', qf[:2]),
-                ('Semi', sf[:1]),
-            ]) }}
+        <div class="bracket">
+            {# ── LEFT SIDE: R32 → R16 → QF → SF ── #}
+            {% if r32[:8] %}
+            <div class="bracket-col">
+                <div class="round-label">32-del</div>
+                {% for m in r32[:8] %}{{ render_match(m) }}{% endfor %}
+            </div>
+            {% endif %}
+
+            {% if r16[:4] %}
+            <div class="bracket-col">
+                <div class="round-label">16-del</div>
+                {% for m in r16[:4] %}{{ render_match(m) }}{% endfor %}
+            </div>
+            {% endif %}
+
+            {% if qf[:2] %}
+            <div class="bracket-col">
+                <div class="round-label">Kvart</div>
+                {% for m in qf[:2] %}{{ render_match(m) }}{% endfor %}
+            </div>
+            {% endif %}
+
+            {% if sf[:1] %}
+            <div class="bracket-col">
+                <div class="round-label">Semi</div>
+                {% for m in sf[:1] %}{{ render_match(m) }}{% endfor %}
+            </div>
+            {% endif %}
+
+            {# ── CENTER: Final + Brons ── #}
+            <div class="center-col">
+                {% if fin %}
+                <div>
+                    <div class="center-label">Final</div>
+                    {% for m in fin %}{{ render_match(m, is_final=true) }}{% endfor %}
+                </div>
+                {% endif %}
+                {% if tp %}
+                <div>
+                    <div class="center-label">Brons</div>
+                    {% for m in tp %}{{ render_match(m) }}{% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            {# ── RIGHT SIDE: SF ← QF ← R16 ← R32 ── #}
+            {% if sf[1:2] %}
+            <div class="bracket-col">
+                <div class="round-label">Semi</div>
+                {% for m in sf[1:2] %}{{ render_match(m) }}{% endfor %}
+            </div>
+            {% endif %}
+
+            {% if qf[2:] %}
+            <div class="bracket-col">
+                <div class="round-label">Kvart</div>
+                {% for m in qf[2:] %}{{ render_match(m) }}{% endfor %}
+            </div>
+            {% endif %}
+
+            {% if r16[4:] %}
+            <div class="bracket-col">
+                <div class="round-label">16-del</div>
+                {% for m in r16[4:] %}{{ render_match(m) }}{% endfor %}
+            </div>
+            {% endif %}
+
+            {% if r32[8:] %}
+            <div class="bracket-col">
+                <div class="round-label">32-del</div>
+                {% for m in r32[8:] %}{{ render_match(m) }}{% endfor %}
+            </div>
+            {% endif %}
         </div>
     </div>
-
-    {# ── LOWER HALF: right side of bracket ── #}
-    <div class="half-label">Nedre halvan</div>
-    <div class="bracket-wrap">
-        <div class="bracket-half">
-            {{ render_half([
-                ('32-del', r32[8:]),
-                ('16-del', r16[4:]),
-                ('Kvart', qf[2:]),
-                ('Semi', sf[1:2]),
-            ]) }}
-        </div>
-    </div>
-
     {% endif %}
 </div>
 {% endblock %}
