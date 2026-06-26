@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}{{ t.get('nav_bracket', 'Slutspel') }} — {{ t.app_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Bracket layout ─────────────────────────────────── */
+.bracket-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 0;
+}
+.bracket {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    min-width: 1100px;
+    justify-content: center;
+}
+.bracket-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    min-width: 150px;
+    flex: 0 0 auto;
+}
+
+/* Round header */
+.round-label {
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--accent-dark);
+    margin-bottom: 6px;
+    padding: 3px 0;
+    background: var(--accent-faint);
+    border-radius: 4px;
+}
+
+/* Match card */
+.b-match {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin: 4px 2px;
+    font-size: 0.82rem;
+    overflow: hidden;
+}
+.b-match.finished {
+    border-color: var(--accent-light);
+}
+.b-team {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    gap: 4px;
+    min-height: 26px;
+}
+.b-team + .b-team {
+    border-top: 1px solid #eee;
+}
+.b-team-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+    font-weight: 500;
+}
+.b-team-name.tbd {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 400;
+}
+.b-score {
+    font-weight: 700;
+    min-width: 16px;
+    text-align: center;
+    color: var(--accent-dark);
+}
+.b-team.winner .b-team-name {
+    font-weight: 700;
+    color: var(--accent-dark);
+}
+
+/* Connector spacing */
+.bracket-spacer {
+    flex: 0 0 16px;
+    min-width: 16px;
+}
+
+/* Center column for Final + 3rd place */
+.center-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    min-width: 170px;
+}
+.center-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--accent-dark);
+    text-align: center;
+    margin-bottom: 4px;
+}
+.final-match .b-match {
+    border-width: 2px;
+    border-color: var(--accent);
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+    .bracket { min-width: 900px; }
+    .bracket-col { min-width: 120px; }
+    .b-team-name { max-width: 85px; font-size: 0.75rem; }
+    .b-team { padding: 3px 6px; }
+}
+
+.bracket-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{# ── Match rendering macro (must be before usage) ── #}
+{% macro render_match(m) %}
+{% set is_tbd_home = (m.home_team == 'TBD') %}
+{% set is_tbd_away = (m.away_team == 'TBD') %}
+{% set home_winner = m.finished and m.home_goals is not none and m.home_goals > m.away_goals %}
+{% set away_winner = m.finished and m.away_goals is not none and m.away_goals > m.home_goals %}
+<div class="b-match {{ 'finished' if m.finished else '' }}">
+    <div class="b-team {{ 'winner' if home_winner else '' }}">
+        <span class="b-team-name {{ 'tbd' if is_tbd_home else '' }}">{{ m.home_team|country }}</span>
+        <span class="b-score">{{ m.home_goals if m.finished and m.home_goals is not none else '' }}</span>
+    </div>
+    <div class="b-team {{ 'winner' if away_winner else '' }}">
+        <span class="b-team-name {{ 'tbd' if is_tbd_away else '' }}">{{ m.away_team|country }}</span>
+        <span class="b-score">{{ m.away_goals if m.finished and m.away_goals is not none else '' }}</span>
+    </div>
+</div>
+{% endmacro %}
+
+<div class="card">
+    <h2>{{ t.get('nav_bracket', 'Slutspel') }}</h2>
+
+    {% set r32 = by_round.get('round_of_32', []) %}
+    {% set r16 = by_round.get('round_of_16', []) %}
+    {% set qf  = by_round.get('quarter_final', []) %}
+    {% set sf  = by_round.get('semi_final', []) %}
+    {% set tp  = by_round.get('third_place', []) %}
+    {% set fin = by_round.get('final', []) %}
+
+    {% if not r32 and not r16 and not qf and not sf and not fin %}
+    <div class="bracket-empty">
+        <p>Inga slutspelsmatcher inlagda ännu.</p>
+    </div>
+    {% else %}
+
+    {# Split matches into left/right halves for bracket sides #}
+    {% set r32_left = r32[:r32|length // 2] %}
+    {% set r32_right = r32[r32|length // 2:] %}
+    {% set r16_left = r16[:r16|length // 2] %}
+    {% set r16_right = r16[r16|length // 2:] %}
+    {% set qf_left = qf[:qf|length // 2] %}
+    {% set qf_right = qf[qf|length // 2:] %}
+    {% set sf_left = sf[:1] %}
+    {% set sf_right = sf[1:2] %}
+
+    <div class="bracket-wrap">
+        <div class="bracket">
+            {# ── LEFT SIDE: R32 → R16 → QF → SF ── #}
+            <div class="bracket-col">
+                <div class="round-label">R32</div>
+                {% for m in r32_left %}{{ render_match(m) }}{% endfor %}
+            </div>
+            <div class="bracket-spacer"></div>
+
+            <div class="bracket-col">
+                <div class="round-label">R16</div>
+                {% for m in r16_left %}{{ render_match(m) }}{% endfor %}
+            </div>
+            <div class="bracket-spacer"></div>
+
+            <div class="bracket-col">
+                <div class="round-label">QF</div>
+                {% for m in qf_left %}{{ render_match(m) }}{% endfor %}
+            </div>
+            <div class="bracket-spacer"></div>
+
+            <div class="bracket-col">
+                <div class="round-label">SF</div>
+                {% for m in sf_left %}{{ render_match(m) }}{% endfor %}
+            </div>
+            <div class="bracket-spacer"></div>
+
+            {# ── CENTER: Final + Third place ── #}
+            <div class="center-col">
+                <div class="final-match">
+                    <div class="center-label">Final</div>
+                    {% for m in fin %}{{ render_match(m) }}{% endfor %}
+                </div>
+                {% if tp %}
+                <div>
+                    <div class="center-label">3:e plats</div>
+                    {% for m in tp %}{{ render_match(m) }}{% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="bracket-spacer"></div>
+
+            {# ── RIGHT SIDE: SF → QF → R16 → R32 ── #}
+            <div class="bracket-col">
+                <div class="round-label">SF</div>
+                {% for m in sf_right %}{{ render_match(m) }}{% endfor %}
+            </div>
+            <div class="bracket-spacer"></div>
+
+            <div class="bracket-col">
+                <div class="round-label">QF</div>
+                {% for m in qf_right %}{{ render_match(m) }}{% endfor %}
+            </div>
+            <div class="bracket-spacer"></div>
+
+            <div class="bracket-col">
+                <div class="round-label">R16</div>
+                {% for m in r16_right %}{{ render_match(m) }}{% endfor %}
+            </div>
+            <div class="bracket-spacer"></div>
+
+            <div class="bracket-col">
+                <div class="round-label">R32</div>
+                {% for m in r32_right %}{{ render_match(m) }}{% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

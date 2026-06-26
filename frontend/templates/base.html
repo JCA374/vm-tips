@@ -237,6 +237,7 @@
     <nav>
         {% if session.get('user_id') %}
         <a href="/today">{{ t.nav_today }}</a>
+        <a href="/bracket">{{ t.get('nav_bracket', 'Slutspel') }}</a>
         <a href="/leaderboard">{{ t.nav_leaderboard }}</a>
         <a href="/predict">{{ t.nav_predictions }}</a>
         <a href="/results">{{ t.nav_results }}</a>

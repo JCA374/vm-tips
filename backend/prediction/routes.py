@@ -207,6 +207,25 @@ def today_refresh():
         return jsonify({'ok': False, 'msg': 'Kunde inte hämta data. Försök igen senare.'})
 
 
+@prediction_bp.route('/bracket')
+def bracket():
+    """Tournament bracket view for knockout stages"""
+    db = SessionLocal()
+    knockout_rounds = ['round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final']
+    matches = (db.query(Match)
+               .filter(Match.round.in_(knockout_rounds))
+               .order_by(Match.match_date)
+               .all())
+    db.close()
+
+    # Group matches by round
+    by_round = {}
+    for m in matches:
+        by_round.setdefault(m.round, []).append(m)
+
+    return render_template('prediction/bracket.html', by_round=by_round)
+
+
 @prediction_bp.route('/leaderboard')
 def leaderboard():
     """Show leaderboard with scores"""
