@@ -69,6 +69,39 @@ def create_app(config_override=None):
         lang = session.get('lang', 'sv')
         return TRANSLATIONS[lang]['countries'].get(name, name)
 
+    COUNTRY_FLAGS = {
+        'Algeria': '\U0001F1E9\U0001F1FF', 'Argentina': '\U0001F1E6\U0001F1F7',
+        'Australia': '\U0001F1E6\U0001F1FA', 'Austria': '\U0001F1E6\U0001F1F9',
+        'Belgium': '\U0001F1E7\U0001F1EA', 'Bosnia-Herzegovina': '\U0001F1E7\U0001F1E6',
+        'Brazil': '\U0001F1E7\U0001F1F7', 'Canada': '\U0001F1E8\U0001F1E6',
+        'Cape Verde Islands': '\U0001F1E8\U0001F1FB', 'Colombia': '\U0001F1E8\U0001F1F4',
+        'Congo DR': '\U0001F1E8\U0001F1E9', 'Croatia': '\U0001F1ED\U0001F1F7',
+        'Curaçao': '\U0001F1E8\U0001F1FC', 'Czechia': '\U0001F1E8\U0001F1FF',
+        'Ecuador': '\U0001F1EA\U0001F1E8', 'Egypt': '\U0001F1EA\U0001F1EC',
+        'England': '\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F',
+        'France': '\U0001F1EB\U0001F1F7', 'Germany': '\U0001F1E9\U0001F1EA',
+        'Ghana': '\U0001F1EC\U0001F1ED', 'Haiti': '\U0001F1ED\U0001F1F9',
+        'Iran': '\U0001F1EE\U0001F1F7', 'Iraq': '\U0001F1EE\U0001F1F6',
+        'Ivory Coast': '\U0001F1E8\U0001F1EE', 'Japan': '\U0001F1EF\U0001F1F5',
+        'Jordan': '\U0001F1EF\U0001F1F4', 'Mexico': '\U0001F1F2\U0001F1FD',
+        'Morocco': '\U0001F1F2\U0001F1E6', 'Netherlands': '\U0001F1F3\U0001F1F1',
+        'New Zealand': '\U0001F1F3\U0001F1FF', 'Norway': '\U0001F1F3\U0001F1F4',
+        'Panama': '\U0001F1F5\U0001F1E6', 'Paraguay': '\U0001F1F5\U0001F1FE',
+        'Portugal': '\U0001F1F5\U0001F1F9', 'Qatar': '\U0001F1F6\U0001F1E6',
+        'Saudi Arabia': '\U0001F1F8\U0001F1E6', 'Scotland': '\U0001F3F4\U000E0067\U000E0062\U000E0073\U000E0063\U000E0074\U000E007F',
+        'Senegal': '\U0001F1F8\U0001F1F3', 'South Africa': '\U0001F1FF\U0001F1E6',
+        'South Korea': '\U0001F1F0\U0001F1F7', 'Spain': '\U0001F1EA\U0001F1F8',
+        'Sweden': '\U0001F1F8\U0001F1EA', 'Switzerland': '\U0001F1E8\U0001F1ED',
+        'Tunisia': '\U0001F1F9\U0001F1F3', 'Turkey': '\U0001F1F9\U0001F1F7',
+        'United States': '\U0001F1FA\U0001F1F8', 'Uruguay': '\U0001F1FA\U0001F1FE',
+        'Uzbekistan': '\U0001F1FA\U0001F1FF',
+    }
+
+    @app.template_filter('flag')
+    def flag_filter(name):
+        """Return flag emoji for a country name."""
+        return COUNTRY_FLAGS.get(name, '')
+
     # --- Activity tracking ---
     SKIP_PATHS = {'/static', '/health', '/favicon.ico'}
 
