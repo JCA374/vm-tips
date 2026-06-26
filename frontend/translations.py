@@ -47,7 +47,7 @@ TRANSLATIONS = {
             'Spain': 'Spanien',
             'Sweden': 'Sverige',
             'Switzerland': 'Schweiz',
-            'TBD': 'Okänd',
+            'TBD': '—',
             'Tunisia': 'Tunisien',
             'Turkey': 'Turkiet',
             'United States': 'USA',
