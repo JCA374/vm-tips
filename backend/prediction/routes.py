@@ -214,14 +214,27 @@ def bracket():
     knockout_rounds = ['round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final']
     matches = (db.query(Match)
                .filter(Match.round.in_(knockout_rounds))
-               .order_by(Match.match_date)
+               .order_by(Match.external_id)
                .all())
     db.close()
 
-    # Group matches by round
+    # Group matches by round, then sort each half by date
+    BRACKET_HALF_SIZES = {
+        'round_of_32': 8, 'round_of_16': 4,
+        'quarter_final': 2, 'semi_final': 1,
+    }
     by_round = {}
     for m in matches:
         by_round.setdefault(m.round, []).append(m)
+    for rnd, rnd_matches in by_round.items():
+        rnd_matches.sort(key=lambda m: m.external_id)
+        half = BRACKET_HALF_SIZES.get(rnd)
+        if half and len(rnd_matches) > half:
+            left = rnd_matches[:half]
+            right = rnd_matches[half:]
+            left.sort(key=lambda m: m.match_date)
+            right.sort(key=lambda m: m.match_date)
+            by_round[rnd] = left + right
 
     return render_template('prediction/bracket.html', by_round=by_round)
 
@@ -299,6 +312,14 @@ def predict():
     user_preds = get_user_predictions(user_id)
     predictions_dict = {p.match_id: p for p in user_preds}
 
+    # Bracket half sizes: how many matches belong to the left side
+    BRACKET_HALF = {
+        'round_of_32': 8,
+        'round_of_16': 4,
+        'quarter_final': 2,
+        'semi_final': 1,
+    }
+
     # Group matches by round
     rounds_data = []
     for round_key, round_label in ROUNDS:
@@ -306,6 +327,22 @@ def predict():
         # For group stage: sort by group then date so group headers render correctly
         if round_key.startswith('group_'):
             round_matches.sort(key=lambda m: (m.group or '', m.match_date))
+        is_knockout = round_key in BRACKET_HALF
+        if is_knockout:
+            # Sort by external_id to determine bracket halves
+            round_matches.sort(key=lambda m: m.external_id)
+            half = BRACKET_HALF[round_key]
+            left = round_matches[:half]
+            right = round_matches[half:]
+            # Sort each half by date (early to late)
+            left.sort(key=lambda m: m.match_date)
+            right.sort(key=lambda m: m.match_date)
+            round_matches = left + right
+            # Tag each match with its bracket side
+            for m in left:
+                m._bracket_side = 'left'
+            for m in right:
+                m._bracket_side = 'right'
         deadline = deadlines.get(round_key)
         rounds_data.append({
             'key': round_key,
@@ -313,7 +350,7 @@ def predict():
             'matches': round_matches,
             'deadline': deadline,
             'locked': deadline.is_past() if deadline else False,
-            'is_knockout': False,
+            'is_knockout': is_knockout,
         })
 
     # Default to the round with the closest upcoming deadline

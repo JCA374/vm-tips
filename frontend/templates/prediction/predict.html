@@ -211,7 +211,7 @@
 
         {% if round.matches %}
         <div style="margin-top: 8px;">
-            {% set ns = namespace(last_group='') %}
+            {% set ns = namespace(last_group='', last_side='') %}
             {% for match in round.matches %}
             {% set pred = predictions.get(match.id) %}
             {% set is_tbd = match.home_team == 'TBD' %}
@@ -221,6 +221,13 @@
             {% set ns.last_group = match.group %}
             <div style="margin: 14px 0 4px; font-size: 12px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 0.05em;">
                 {{ match.group.replace('GROUP_', 'Group ') }}
+            </div>
+            {% endif %}
+
+            {% if round.is_knockout and match._bracket_side is defined and match._bracket_side != ns.last_side %}
+            {% set ns.last_side = match._bracket_side %}
+            <div style="margin: 14px 0 6px; font-size: 12px; font-weight: bold; color: var(--accent-dark); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--accent-faint); padding-bottom: 4px;">
+                {% if match._bracket_side == 'left' %}&#9664; {{ t.get('bracket_left', 'Vänster') }}{% else %}{{ t.get('bracket_right', 'Höger') }} &#9654;{% endif %}
             </div>
             {% endif %}
 

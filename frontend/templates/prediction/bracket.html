@@ -17,7 +17,6 @@
 .bracket-col {
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
     flex: 1;
     min-width: 0;
     padding: 0 2px;
@@ -35,6 +34,13 @@
     background: var(--accent-faint);
     border-radius: 4px;
     white-space: nowrap;
+    flex-shrink: 0;
+}
+.bracket-matches {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
 }
 
 /* Match card */
@@ -51,6 +57,14 @@
 }
 .b-match.final-game {
     border: 2px solid var(--accent);
+}
+.b-date {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    padding: 1px 5px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+    white-space: nowrap;
 }
 .b-team {
     display: flex;
@@ -139,6 +153,11 @@
 {% set home_win = m.finished and m.home_goals is not none and m.home_goals > m.away_goals %}
 {% set away_win = m.finished and m.away_goals is not none and m.away_goals > m.home_goals %}
 <div class="b-match {{ 'finished' if m.finished else '' }} {{ 'final-game' if is_final else '' }}">
+    <div class="b-date">
+        <span class="local-time-short-date" data-utc="{{ m.match_date.strftime('%Y-%m-%dT%H:%M:00Z') }}">
+            {{ m.match_date.strftime('%d/%m %H:%M') }}
+        </span>
+    </div>
     <div class="b-team {{ 'winner' if home_win else '' }}">
         <span class="b-flag">{{ m.home_team|flag }}</span>
         <span class="b-team-name {{ 'tbd' if m.home_team == 'TBD' else '' }}">{{ m.home_team|country }}</span>
@@ -174,28 +193,36 @@
             {% if r32[:8] %}
             <div class="bracket-col">
                 <div class="round-label">32-del</div>
+                <div class="bracket-matches">
                 {% for m in r32[:8] %}{{ render_match(m) }}{% endfor %}
+                </div>
             </div>
             {% endif %}
 
             {% if r16[:4] %}
             <div class="bracket-col">
                 <div class="round-label">16-del</div>
+                <div class="bracket-matches">
                 {% for m in r16[:4] %}{{ render_match(m) }}{% endfor %}
+                </div>
             </div>
             {% endif %}
 
             {% if qf[:2] %}
             <div class="bracket-col">
                 <div class="round-label">Kvart</div>
+                <div class="bracket-matches">
                 {% for m in qf[:2] %}{{ render_match(m) }}{% endfor %}
+                </div>
             </div>
             {% endif %}
 
             {% if sf[:1] %}
             <div class="bracket-col">
                 <div class="round-label">Semi</div>
+                <div class="bracket-matches">
                 {% for m in sf[:1] %}{{ render_match(m) }}{% endfor %}
+                </div>
             </div>
             {% endif %}
 
@@ -219,32 +246,58 @@
             {% if sf[1:2] %}
             <div class="bracket-col">
                 <div class="round-label">Semi</div>
+                <div class="bracket-matches">
                 {% for m in sf[1:2] %}{{ render_match(m) }}{% endfor %}
+                </div>
             </div>
             {% endif %}
 
             {% if qf[2:] %}
             <div class="bracket-col">
                 <div class="round-label">Kvart</div>
+                <div class="bracket-matches">
                 {% for m in qf[2:] %}{{ render_match(m) }}{% endfor %}
+                </div>
             </div>
             {% endif %}
 
             {% if r16[4:] %}
             <div class="bracket-col">
                 <div class="round-label">16-del</div>
+                <div class="bracket-matches">
                 {% for m in r16[4:] %}{{ render_match(m) }}{% endfor %}
+                </div>
             </div>
             {% endif %}
 
             {% if r32[8:] %}
             <div class="bracket-col">
                 <div class="round-label">32-del</div>
+                <div class="bracket-matches">
                 {% for m in r32[8:] %}{{ render_match(m) }}{% endfor %}
+                </div>
             </div>
             {% endif %}
         </div>
     </div>
     {% endif %}
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var tz = 'Europe/Stockholm';
+    try { var d = Intl.DateTimeFormat().resolvedOptions().timeZone; if (d) tz = d; } catch(e) {}
+    var fmt = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: tz,
+        day: 'numeric', month: 'short',
+        hour: '2-digit', minute: '2-digit'
+    });
+    document.querySelectorAll('.local-time-short-date').forEach(function (el) {
+        try { el.textContent = fmt.format(new Date(el.dataset.utc)); } catch(e) {}
+    });
+})();
+</script>
 {% endblock %}
