@@ -227,14 +227,8 @@ def bracket():
     for m in matches:
         by_round.setdefault(m.round, []).append(m)
     for rnd, rnd_matches in by_round.items():
+        # Sort by external_id to preserve bracket tree structure
         rnd_matches.sort(key=lambda m: m.external_id)
-        half = BRACKET_HALF_SIZES.get(rnd)
-        if half and len(rnd_matches) > half:
-            left = rnd_matches[:half]
-            right = rnd_matches[half:]
-            left.sort(key=lambda m: m.match_date)
-            right.sort(key=lambda m: m.match_date)
-            by_round[rnd] = left + right
 
     return render_template('prediction/bracket.html', by_round=by_round)
 
@@ -329,20 +323,13 @@ def predict():
             round_matches.sort(key=lambda m: (m.group or '', m.match_date))
         is_knockout = round_key in BRACKET_HALF
         if is_knockout:
-            # Sort by external_id to determine bracket halves
+            # Sort by external_id to preserve bracket tree structure
+            # (R32[0,1]→R16[0], R32[2,3]→R16[1], etc.)
             round_matches.sort(key=lambda m: m.external_id)
             half = BRACKET_HALF[round_key]
-            left = round_matches[:half]
-            right = round_matches[half:]
-            # Sort each half by date (early to late)
-            left.sort(key=lambda m: m.match_date)
-            right.sort(key=lambda m: m.match_date)
-            round_matches = left + right
             # Tag each match with its bracket side
-            for m in left:
-                m._bracket_side = 'left'
-            for m in right:
-                m._bracket_side = 'right'
+            for i, m in enumerate(round_matches):
+                m._bracket_side = 'left' if i < half else 'right'
         deadline = deadlines.get(round_key)
         rounds_data.append({
             'key': round_key,

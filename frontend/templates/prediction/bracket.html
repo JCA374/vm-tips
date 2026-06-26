@@ -193,7 +193,7 @@
             {# ── LEFT SIDE: R32 → R16 → QF → SF ── #}
             {% if r32[:8] %}
             <div class="bracket-col">
-                <div class="round-label">32-del</div>
+                <div class="round-label">16-del</div>
                 <div class="bracket-matches">
                 {% for m in r32[:8] %}{{ render_match(m) }}{% endfor %}
                 </div>
@@ -202,7 +202,7 @@
 
             {% if r16[:4] %}
             <div class="bracket-col">
-                <div class="round-label">16-del</div>
+                <div class="round-label">8-del</div>
                 <div class="bracket-matches">
                 {% for m in r16[:4] %}{{ render_match(m) }}{% endfor %}
                 </div>
@@ -264,7 +264,7 @@
 
             {% if r16[4:] %}
             <div class="bracket-col">
-                <div class="round-label">16-del</div>
+                <div class="round-label">8-del</div>
                 <div class="bracket-matches">
                 {% for m in r16[4:] %}{{ render_match(m) }}{% endfor %}
                 </div>
@@ -273,7 +273,7 @@
 
             {% if r32[8:] %}
             <div class="bracket-col">
-                <div class="round-label">32-del</div>
+                <div class="round-label">16-del</div>
                 <div class="bracket-matches">
                 {% for m in r32[8:] %}{{ render_match(m) }}{% endfor %}
                 </div>
