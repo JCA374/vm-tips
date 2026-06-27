@@ -1,7 +1,6 @@
 """Cron job: send reminder emails before round deadlines.
 
-Group stages: sends when deadline is 23-25 hours away.
-Knockout rounds: sends at 17:00 Stockholm time on the deadline (game) day.
+All rounds: sends ~4 hours before the deadline (cron runs hourly).
 
 Only emails users who have missing predictions for that round.
 Each user gets MAX ONE email per round (tracked in a sent-log file).
@@ -40,6 +39,11 @@ REMINDER_HISTORY = Path(__file__).parent / 'data' / 'reminder_history.json'
 STOCKHOLM_TZ = ZoneInfo('Europe/Stockholm')
 
 KNOCKOUT_ROUNDS = {'round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final'}
+
+# Send reminders ~4 hours before each round's deadline. Cron runs hourly, so this
+# window catches the run nearest the 4h mark; the sent-log prevents duplicates.
+REMIND_HOURS_LOW = 3.5
+REMIND_HOURS_HIGH = 4.5
 
 ROUND_LABELS = {
     'group_md1': 'Omgång 1',
@@ -160,19 +164,6 @@ def main():
 
     sent_total = 0
 
-    now_stockholm = now.astimezone(STOCKHOLM_TZ)
-
-    # Find the nearest upcoming knockout deadline (only remind for this one)
-    next_knockout_dl = None
-    for dl in deadlines:
-        if dl.round not in KNOCKOUT_ROUNDS:
-            continue
-        dl_utc = dl.deadline.replace(tzinfo=timezone.utc)
-        if dl_utc < now:
-            continue
-        if next_knockout_dl is None or dl_utc < next_knockout_dl.deadline.replace(tzinfo=timezone.utc):
-            next_knockout_dl = dl
-
     for dl in deadlines:
         deadline_utc = dl.deadline.replace(tzinfo=timezone.utc)
         hours_until = (deadline_utc - now).total_seconds() / 3600
@@ -181,18 +172,9 @@ def main():
         if SEND_NOW:
             if deadline_utc < now:
                 continue
-        elif dl.round in KNOCKOUT_ROUNDS:
-            # Only send for the nearest upcoming knockout deadline
-            if dl != next_knockout_dl:
-                continue
-            # Send at 17:00 Stockholm time, on the deadline (game) day only
-            if now_stockholm.hour != 17:
-                continue
-            if now_stockholm.date() != deadline_stockholm.date():
-                continue
         else:
-            # Group stages: send when deadline is 23-25 hours away
-            if hours_until < 23 or hours_until > 25:
+            # All rounds: send ~4 hours before the deadline
+            if not (REMIND_HOURS_LOW <= hours_until < REMIND_HOURS_HIGH):
                 continue
 
         round_label = ROUND_LABELS.get(dl.round, dl.round)
