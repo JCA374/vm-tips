@@ -188,19 +188,30 @@
     {% for round in rounds_data %}
     <div id="tab-{{ round.key }}" class="tab-panel {% if round.key == default_tab or (not default_tab and loop.first) %}active{% endif %}">
 
-        {% if round.deadline %}
-            {% if round.locked %}
+        {# A round normally has one deadline. round_of_32 has two: one for the
+           earliest date ("Första dagen") and one for the rest ("Övriga matcher"). #}
+        {% set sections = round.splits if round.splits else
+               [{'label': none, 'deadline_dt': (round.deadline.deadline if round.deadline else none),
+                 'locked': round.locked, 'matches': round.matches}] %}
+
+        {% for section in sections %}
+        {% if section.label %}
+        <h3 style="margin: {% if not loop.first %}26px{% else %}4px{% endif %} 0 8px; font-size: 15px; color: var(--accent-dark);">{{ section.label }}</h3>
+        {% endif %}
+
+        {% if section.deadline_dt %}
+            {% if section.locked %}
             <span class="deadline-badge locked">
                 {{ t.predict_locked }}
-                <span class="local-time" data-utc="{{ round.deadline.deadline.strftime('%Y-%m-%dT%H:%M:00Z') }}">
-                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }}
+                <span class="local-time" data-utc="{{ section.deadline_dt.strftime('%Y-%m-%dT%H:%M:00Z') }}">
+                    {{ section.deadline_dt.strftime('%d %b %Y %H:%M') }}
                 </span>
             </span>
             {% else %}
             <span class="deadline-badge open">
                 {{ t.predict_deadline }}
-                <span class="local-time" data-utc="{{ round.deadline.deadline.strftime('%Y-%m-%dT%H:%M:00Z') }}">
-                    {{ round.deadline.deadline.strftime('%d %b %Y %H:%M') }}
+                <span class="local-time" data-utc="{{ section.deadline_dt.strftime('%Y-%m-%dT%H:%M:00Z') }}">
+                    {{ section.deadline_dt.strftime('%d %b %Y %H:%M') }}
                 </span>
             </span>
             <p style="font-size:13px; color:#555; margin-top:8px; margin-bottom:0;">{{ t.predict_change_hint | safe }}</p>
@@ -209,13 +220,13 @@
         <span class="deadline-badge no-deadline">{{ t.predict_no_deadline }}</span>
         {% endif %}
 
-        {% if round.matches %}
+        {% if section.matches %}
         <div style="margin-top: 8px;">
             {% set ns = namespace(last_group='', last_side='') %}
-            {% for match in round.matches %}
+            {% for match in section.matches %}
             {% set pred = predictions.get(match.id) %}
             {% set is_tbd = match.home_team == 'TBD' %}
-            {% set disabled = round.locked or match.finished or is_tbd %}
+            {% set disabled = section.locked or match.finished or is_tbd %}
 
             {% if match.group and match.group != ns.last_group %}
             {% set ns.last_group = match.group %}
@@ -224,7 +235,7 @@
             </div>
             {% endif %}
 
-            {% if round.is_knockout and match._bracket_side is defined and match._bracket_side != ns.last_side %}
+            {% if round.is_knockout and not round.splits and match._bracket_side is defined and match._bracket_side != ns.last_side %}
             {% set ns.last_side = match._bracket_side %}
             <div style="margin: 14px 0 6px; font-size: 12px; font-weight: bold; color: var(--accent-dark); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--accent-faint); padding-bottom: 4px;">
                 {% if match._bracket_side == 'left' %}&#9664; {{ t.get('bracket_left', 'Vänster') }}{% else %}{{ t.get('bracket_right', 'Höger') }} &#9654;{% endif %}
@@ -277,6 +288,7 @@
         {% else %}
         <p style="color:#aaa; font-style:italic; margin-top:12px;">{{ t.predict_no_matches }}</p>
         {% endif %}
+        {% endfor %}
 
         {% if not round.locked %}
         <div style="display:flex; align-items:center; gap:16px; margin-top:20px; flex-wrap:wrap;">

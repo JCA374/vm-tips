@@ -5,7 +5,8 @@ from sqlalchemy.orm import joinedload
 from backend.prediction.service import (
     get_leaderboard, submit_prediction, get_user_predictions,
     get_all_predictions_for_round, check_deadline_passed,
-    calculate_all_scores,
+    calculate_all_scores, effective_deadlines, match_deadline_passed,
+    r32_early_date, SPLIT_ROUND, REST_KEY,
 )
 from backend.match_data.service import sync_matches
 from backend.models import SessionLocal, RoundDeadline, Match, Prediction, User
@@ -56,15 +57,19 @@ def today():
     day_start_utc = datetime(venue_today.year, venue_today.month, venue_today.day, 5, 0, tzinfo=timezone.utc)
     day_end_utc = day_start_utc + timedelta(days=1)
 
-    # Deadlines to check visibility — only show matches whose round deadline has passed
-    deadlines = {d.round: d for d in db.query(RoundDeadline).all()}
-    locked_rounds = {r for r, d in deadlines.items() if d.is_past()}
+    # Visibility — only reveal matches whose governing deadline has passed
+    # (round_of_32 has a per-date split deadline, so check per match, not per round)
+    eff_deadlines = effective_deadlines(db)
+    early_date = r32_early_date(db)
+    revealed_ids = {
+        m.id for m in db.query(Match).all()
+        if match_deadline_passed(m, eff_deadlines, early_date)
+    }
 
-    # Find all match days for navigation — only days with locked-round matches
+    # Find all match days for navigation — only days with revealed matches
     all_match_dates_raw = [
-        m[0] for m in db.query(Match.match_date)
-        .filter(Match.round.in_(locked_rounds)).all()
-    ] if locked_rounds else []
+        m.match_date for m in db.query(Match).filter(Match.id.in_(revealed_ids)).all()
+    ] if revealed_ids else []
     match_days = sorted({(d + timedelta(hours=-5)).date() for d in all_match_dates_raw})
 
     # Previous and next match day relative to selected date
@@ -81,22 +86,15 @@ def today():
     actual_today = (datetime.now(timezone.utc) + timedelta(hours=-5)).date()
     is_today = venue_today == actual_today
 
-    matches = (
+    day_matches = (
         db.query(Match)
-        .filter(Match.match_date >= day_start_utc, Match.match_date < day_end_utc,
-                Match.round.in_(locked_rounds))
-        .order_by(Match.match_date)
-        .all()
-    ) if locked_rounds else []
-
-    # Matches today whose deadline hasn't passed yet (show without predictions)
-    unlocked_matches = (
-        db.query(Match)
-        .filter(Match.match_date >= day_start_utc, Match.match_date < day_end_utc,
-                ~Match.round.in_(locked_rounds) if locked_rounds else True)
+        .filter(Match.match_date >= day_start_utc, Match.match_date < day_end_utc)
         .order_by(Match.match_date)
         .all()
     )
+    matches = [m for m in day_matches if m.id in revealed_ids]
+    # Matches today whose deadline hasn't passed yet (show without predictions)
+    unlocked_matches = [m for m in day_matches if m.id not in revealed_ids]
 
     # All predictions for today's matches
     match_ids = [m.id for m in matches]
@@ -314,6 +312,14 @@ def predict():
         'semi_final': 1,
     }
 
+    # round_of_32 split deadline: earliest match date vs the rest
+    r32_dates = sorted(m.match_date for m in all_matches if m.round == SPLIT_ROUND)
+    r32_early_date = r32_dates[0].date() if r32_dates else None
+    r32_early_dl_obj = deadlines.get(SPLIT_ROUND)
+    r32_early_dl = r32_early_dl_obj.deadline if r32_early_dl_obj else (r32_dates[0] if r32_dates else None)
+    r32_rest_dates = [d for d in r32_dates if d.date() != r32_early_date]
+    r32_rest_dl = r32_rest_dates[0] if r32_rest_dates else None
+
     # Group matches by round
     rounds_data = []
     for round_key, round_label in ROUNDS:
@@ -331,13 +337,34 @@ def predict():
             for i, m in enumerate(round_matches):
                 m._bracket_side = 'left' if i < half else 'right'
         deadline = deadlines.get(round_key)
+
+        # round_of_32: two deadlines — earliest date vs the rest
+        splits = None
+        if round_key == SPLIT_ROUND and r32_early_date:
+            now = datetime.utcnow()
+            early_matches = sorted((m for m in round_matches if m.match_date.date() == r32_early_date),
+                                   key=lambda m: m.match_date)
+            rest_matches = sorted((m for m in round_matches if m.match_date.date() != r32_early_date),
+                                  key=lambda m: m.match_date)
+            splits = [
+                {'label': 'Första dagen', 'deadline_dt': r32_early_dl,
+                 'locked': bool(r32_early_dl and now > r32_early_dl), 'matches': early_matches},
+            ]
+            if rest_matches:
+                splits.append(
+                    {'label': 'Övriga matcher', 'deadline_dt': r32_rest_dl,
+                     'locked': bool(r32_rest_dl and now > r32_rest_dl), 'matches': rest_matches})
+
+        round_locked = (all(s['locked'] for s in splits) if splits
+                        else (deadline.is_past() if deadline else False))
         rounds_data.append({
             'key': round_key,
             'label': round_label,
             'matches': round_matches,
             'deadline': deadline,
-            'locked': deadline.is_past() if deadline else False,
+            'locked': round_locked,
             'is_knockout': is_knockout,
+            'splits': splits,
         })
 
     # Default to the round with the closest upcoming deadline
@@ -367,16 +394,14 @@ def results():
     from backend.models import Match, Prediction, User
     from sqlalchemy.orm import joinedload
 
-    # Only include matches whose round deadline has passed
-    deadlines = {d.round: d for d in db.query(RoundDeadline).all()}
-    open_rounds = {r for r, d in deadlines.items() if d.is_past()}
-
-    visible_matches = (
-        db.query(Match)
-        .filter(Match.round.in_(open_rounds))
-        .order_by(Match.match_date)
-        .all()
-    ) if open_rounds else []
+    # Only include matches whose governing deadline has passed
+    # (round_of_32 uses a per-date split deadline — check per match, not per round)
+    eff_deadlines = effective_deadlines(db)
+    early_date = r32_early_date(db)
+    visible_matches = [
+        m for m in db.query(Match).order_by(Match.match_date).all()
+        if match_deadline_passed(m, eff_deadlines, early_date)
+    ]
 
     # All predictions for visible matches, with user + match loaded
     all_preds = (

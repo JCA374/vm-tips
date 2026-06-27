@@ -3,6 +3,49 @@ from datetime import datetime
 from backend.models import Prediction, Match, User, RoundDeadline, SessionLocal
 
 
+# ── Split deadline ────────────────────────────────────────────────────────────
+# round_of_32 uses TWO deadlines: one for the matches on the earliest date, and
+# one for all the rest. The earliest-date deadline is the stored 'round_of_32'
+# RoundDeadline row; the 'rest' deadline is derived as the first kickoff among
+# round_of_32 matches that are NOT on the earliest date.
+SPLIT_ROUND = 'round_of_32'
+REST_KEY = 'round_of_32_rest'
+
+
+def r32_early_date(db):
+    """Date of the earliest round_of_32 match (None if none exist)."""
+    first = (db.query(Match)
+             .filter(Match.round == SPLIT_ROUND)
+             .order_by(Match.match_date)
+             .first())
+    return first.match_date.date() if first else None
+
+
+def effective_deadlines(db):
+    """{key: deadline_datetime} for all rounds, plus the derived REST_KEY."""
+    out = {d.round: d.deadline for d in db.query(RoundDeadline).all()}
+    early = r32_early_date(db)
+    if early:
+        later = [m.match_date for m in db.query(Match).filter(Match.round == SPLIT_ROUND).all()
+                 if m.match_date.date() != early]
+        if later:
+            out[REST_KEY] = min(later)
+    return out
+
+
+def deadline_key_for_match(match, early_date):
+    """Which deadline key governs a given match."""
+    if match.round == SPLIT_ROUND and early_date and match.match_date.date() != early_date:
+        return REST_KEY
+    return match.round
+
+
+def match_deadline_passed(match, deadlines, early_date):
+    """True if the deadline governing this match has passed."""
+    dl = deadlines.get(deadline_key_for_match(match, early_date))
+    return bool(dl and datetime.utcnow() > dl)
+
+
 def submit_prediction(user_id, match_id, outcome=None, home_goals=None, away_goals=None):
     """
     Submit or update a prediction for a match.
@@ -20,8 +63,7 @@ def submit_prediction(user_id, match_id, outcome=None, home_goals=None, away_goa
         if match.finished:
             return {'status': 'error', 'message': 'Match already finished'}
 
-        deadline = db.query(RoundDeadline).filter_by(round=match.round).first()
-        if deadline and deadline.is_past():
+        if match_deadline_passed(match, effective_deadlines(db), r32_early_date(db)):
             return {'status': 'error', 'message': 'Deadline has passed'}
 
         existing = db.query(Prediction).filter_by(user_id=user_id, match_id=match_id).first()
