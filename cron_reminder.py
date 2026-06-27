@@ -1,7 +1,7 @@
 """Cron job: send reminder emails before round deadlines.
 
 Group stages: sends when deadline is 23-25 hours away.
-Knockout rounds: sends at 10:00 Stockholm time if deadline hasn't passed.
+Knockout rounds: sends at 17:00 Stockholm time on the deadline (game) day.
 
 Only emails users who have missing predictions for that round.
 Each user gets MAX ONE email per round (tracked in a sent-log file).
@@ -176,6 +176,7 @@ def main():
     for dl in deadlines:
         deadline_utc = dl.deadline.replace(tzinfo=timezone.utc)
         hours_until = (deadline_utc - now).total_seconds() / 3600
+        deadline_stockholm = deadline_utc.astimezone(STOCKHOLM_TZ)
 
         if SEND_NOW:
             if deadline_utc < now:
@@ -184,8 +185,10 @@ def main():
             # Only send for the nearest upcoming knockout deadline
             if dl != next_knockout_dl:
                 continue
-            # Send at 10:00 Stockholm time
-            if now_stockholm.hour != 10:
+            # Send at 17:00 Stockholm time, on the deadline (game) day only
+            if now_stockholm.hour != 17:
+                continue
+            if now_stockholm.date() != deadline_stockholm.date():
                 continue
         else:
             # Group stages: send when deadline is 23-25 hours away
@@ -193,7 +196,6 @@ def main():
                 continue
 
         round_label = ROUND_LABELS.get(dl.round, dl.round)
-        deadline_stockholm = deadline_utc.astimezone(STOCKHOLM_TZ)
         deadline_str = deadline_stockholm.strftime('%d %b %H:%M')
 
         print(f'  Round: {round_label} (deadline: {deadline_str}, {hours_until:.1f}h away)')
