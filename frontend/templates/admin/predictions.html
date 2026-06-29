@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Edit Player Bets — VM Tips{% endblock %}
+
+{% block extra_css %}
+<style>
+.round-block { margin-bottom: 1.75rem; }
+.round-block h3 { margin-bottom: .5rem; }
+.dl-tag {
+    font-size: .75rem; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+    margin-left: .5rem; vertical-align: middle;
+}
+.dl-passed { background: var(--warning-bg); color: var(--warning-text); }
+.dl-open   { background: var(--accent-faint); color: var(--accent-dark); }
+.pred-table td { padding: .4rem .5rem; }
+.pred-table .picks { white-space: nowrap; }
+.pred-table .picks label { margin-right: .65rem; cursor: pointer; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Edit Player Bets</h2>
+    <p style="color:#888; margin-bottom:1rem;">
+        Set or change a player's predictions <strong>after the deadline</strong> — for someone
+        who missed it. Finished matches are hidden (can't be changed once played).
+    </p>
+
+    <form method="GET">
+        <div class="form-group">
+            <label for="user_id">Player:</label>
+            <select id="user_id" name="user_id" onchange="this.form.submit()">
+                <option value="">— Select a player —</option>
+                {% for u in users %}
+                <option value="{{ u.id }}" {{ 'selected' if selected_user and u.id == selected_user.id }}>
+                    {{ u.name }} ({{ u.email }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="round">Round:</label>
+            <select id="round" name="round" onchange="this.form.submit()">
+                <option value="">— All rounds —</option>
+                {% for key, label in round_labels %}
+                <option value="{{ key }}" {{ 'selected' if selected_round == key }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+</div>
+
+{% if selected_user %}
+<form method="POST">
+<input type="hidden" name="user_id" value="{{ selected_user.id }}">
+<input type="hidden" name="round" value="{{ selected_round }}">
+<div class="card">
+    <h2 style="margin-bottom:1rem;">Bets for {{ selected_user.name }}</h2>
+
+    {% if rounds_data %}
+        {% for rd in rounds_data %}
+        <div class="round-block">
+            <h3>
+                {{ rd.label }}
+                {% if rd.deadline_passed %}
+                <span class="dl-tag dl-passed">Deadline passed</span>
+                {% else %}
+                <span class="dl-tag dl-open">Still open</span>
+                {% endif %}
+            </h3>
+            <table class="pred-table">
+                <tbody>
+                {% for row in rd.rows %}
+                    <tr>
+                        <td>{{ row.match.home_team|country }} vs {{ row.match.away_team|country }}</td>
+                        <td class="picks">
+                            {% for opt in ['1', 'X', '2'] %}
+                            <label>
+                                <input type="radio" name="outcome_{{ row.match.id }}" value="{{ opt }}"
+                                       {{ 'checked' if row.current == opt }}>
+                                {{ opt }}
+                            </label>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn">Save Bets</button>
+    {% else %}
+        <p style="color:#888;">No editable (unfinished) matches.</p>
+    {% endif %}
+</div>
+</form>
+{% endif %}
+{% endblock %}

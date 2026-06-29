@@ -7,7 +7,7 @@ from functools import wraps
 from datetime import datetime
 from backend.models import User, Match, Prediction, RoundDeadline, Invite, ActivityLog, SessionLocal
 from backend.match_data.service import sync_matches, update_match_results, sync_tbd_teams
-from backend.prediction.service import calculate_all_scores
+from backend.prediction.service import calculate_all_scores, admin_set_prediction
 from backend import config
 
 admin_bp = Blueprint('admin', __name__)
@@ -157,6 +157,81 @@ def deadlines():
     return render_template('admin/deadlines.html',
                            deadlines=deadline_dict,
                            existing_deadlines=existing_deadlines)
+
+
+ROUND_LABELS = [
+    ('group_md1',   'Omgång 1'),
+    ('group_md2',   'Omgång 2'),
+    ('group_md3',   'Omgång 3'),
+    ('round_of_32', 'Sextondelsfinal'),
+    ('round_of_16', 'Åttondelsfinal'),
+    ('quarter_final', 'Kvartsfinal'),
+    ('semi_final',  'Semifinal'),
+    ('third_place', 'Bronsmatch'),
+    ('final',       'Final'),
+]
+
+
+@admin_bp.route('/predictions', methods=['GET', 'POST'])
+@require_admin
+def predictions():
+    """Edit a player's bets, bypassing the deadline — for users who missed it."""
+    db = SessionLocal()
+
+    if request.method == 'POST':
+        user_id = int(request.form['user_id'])
+        saved = 0
+        for key, value in request.form.items():
+            if not key.startswith('outcome_') or value not in ('1', 'X', '2'):
+                continue
+            match_id = int(key[len('outcome_'):])
+            result = admin_set_prediction(user_id, match_id, value)
+            if result['status'] == 'success' and result['message'] != 'Prediction unchanged':
+                saved += 1
+        db.close()
+        flash(f'Saved {saved} prediction(s) for the selected player.')
+        return redirect(url_for('admin.predictions', user_id=user_id,
+                                round=request.form.get('round') or None))
+
+    users = db.query(User).order_by(User.name).all()
+
+    selected_id = request.args.get('user_id', type=int)
+    selected_round = request.args.get('round') or ''
+    rounds_data = None
+    selected_user = None
+    if selected_id:
+        selected_user = db.query(User).get(selected_id)
+        all_matches = db.query(Match).order_by(Match.match_date).all()
+        preds = {p.match_id: p for p in db.query(Prediction).filter_by(user_id=selected_id).all()}
+        deadlines = {d.round: d for d in db.query(RoundDeadline).all()}
+
+        rounds_data = []
+        for round_key, label in ROUND_LABELS:
+            if selected_round and round_key != selected_round:
+                continue
+            round_matches = [m for m in all_matches if m.round == round_key and not m.finished]
+            if round_key.startswith('group_'):
+                round_matches.sort(key=lambda m: (m.group or '', m.match_date))
+            if not round_matches:
+                continue
+            dl = deadlines.get(round_key)
+            rows = [{
+                'match': m,
+                'current': preds[m.id].predicted_outcome if m.id in preds else None,
+            } for m in round_matches]
+            rounds_data.append({
+                'label': label,
+                'rows': rows,
+                'deadline_passed': dl.is_past() if dl else False,
+            })
+
+    db.close()
+    return render_template('admin/predictions.html',
+                           users=users,
+                           selected_user=selected_user,
+                           selected_round=selected_round,
+                           round_labels=ROUND_LABELS,
+                           rounds_data=rounds_data)
 
 
 @admin_bp.route('/status')

@@ -93,6 +93,43 @@ def submit_prediction(user_id, match_id, outcome=None, home_goals=None, away_goa
         db.close()
 
 
+def admin_set_prediction(user_id, match_id, outcome):
+    """
+    Admin override: set a user's 1X2 prediction WITHOUT the deadline check.
+    For helping players who missed the deadline. Still refuses finished matches
+    so a result can't be peeked at and back-filled.
+    """
+    db = SessionLocal()
+    try:
+        match = db.query(Match).filter_by(id=match_id).first()
+        if not match:
+            return {'status': 'error', 'message': 'Match not found'}
+
+        if match.finished:
+            return {'status': 'error', 'message': 'Match already finished'}
+
+        if outcome not in ('1', 'X', '2'):
+            return {'status': 'error', 'message': 'Invalid outcome'}
+
+        existing = db.query(Prediction).filter_by(user_id=user_id, match_id=match_id).first()
+        if existing:
+            existing.predicted_outcome = outcome
+            existing.updated_at = datetime.utcnow()
+            message = 'Prediction updated'
+        else:
+            db.add(Prediction(user_id=user_id, match_id=match_id, predicted_outcome=outcome))
+            message = 'Prediction set'
+
+        db.commit()
+        return {'status': 'success', 'message': message}
+
+    except Exception as e:
+        db.rollback()
+        return {'status': 'error', 'message': str(e)}
+    finally:
+        db.close()
+
+
 def get_user_predictions(user_id, round_name=None):
     """Get all predictions for a user, optionally filtered by round"""
     db = SessionLocal()
