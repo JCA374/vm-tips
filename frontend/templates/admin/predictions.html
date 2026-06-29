@@ -14,6 +14,10 @@
 .pred-table td { padding: .4rem .5rem; }
 .pred-table .picks { white-space: nowrap; }
 .pred-table .picks label { margin-right: .65rem; cursor: pointer; font-weight: 600; }
+.result-tag {
+    font-size: .72rem; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+    margin-left: .4rem; background: var(--accent-faint); color: var(--accent-dark);
+}
 </style>
 {% endblock %}
 
@@ -22,7 +26,7 @@
     <h2>Edit Player Bets</h2>
     <p style="color:#888; margin-bottom:1rem;">
         Set or change a player's predictions <strong>after the deadline</strong> — for someone
-        who missed it. Finished matches are hidden (can't be changed once played).
+        who missed it. Finished matches can be edited too; points are recalculated on save.
     </p>
 
     <form method="GET">
@@ -71,7 +75,12 @@
                 <tbody>
                 {% for row in rd.rows %}
                     <tr>
-                        <td>{{ row.match.home_team|country }} vs {{ row.match.away_team|country }}</td>
+                        <td>
+                            {{ row.match.home_team|country }} vs {{ row.match.away_team|country }}
+                            {% if row.match.finished %}
+                            <span class="result-tag">slut {{ row.match.home_goals }}–{{ row.match.away_goals }}</span>
+                            {% endif %}
+                        </td>
                         <td class="picks">
                             {% for opt in ['1', 'X', '2'] %}
                             <label>
@@ -89,7 +98,7 @@
         {% endfor %}
         <button type="submit" class="btn">Save Bets</button>
     {% else %}
-        <p style="color:#888;">No editable (unfinished) matches.</p>
+        <p style="color:#888;">No matches found.</p>
     {% endif %}
 </div>
 </form>

@@ -209,7 +209,7 @@ def predictions():
         for round_key, label in ROUND_LABELS:
             if selected_round and round_key != selected_round:
                 continue
-            round_matches = [m for m in all_matches if m.round == round_key and not m.finished]
+            round_matches = [m for m in all_matches if m.round == round_key]
             if round_key.startswith('group_'):
                 round_matches.sort(key=lambda m: (m.group or '', m.match_date))
             if not round_matches:
