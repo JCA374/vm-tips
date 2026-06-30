@@ -45,6 +45,26 @@ class FootballAPIClient:
 
 KNOCKOUT_STAGES = {'LAST_32', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'THIRD_PLACE', 'FINAL'}
 
+
+def after_90_total(score, stage):
+    """Return the (home, away) total after extra time + penalties for a knockout
+    match decided beyond 90 minutes, else (None, None).
+
+    The API's fullTime score already includes extra time and the shootout; we
+    only surface it when it differs from the 90-minute (regularTime) result, so
+    matches won in normal time get no parenthetical score.
+    """
+    if stage not in KNOCKOUT_STAGES:
+        return None, None
+    reg = score.get('regularTime') or {}
+    full = score.get('fullTime') or {}
+    if reg.get('home') is None or full.get('home') is None:
+        return None, None
+    if (full['home'], full['away']) == (reg['home'], reg['away']):
+        return None, None
+    return full['home'], full['away']
+
+
 def map_stage_to_round(stage_name, matchday=None):
     """Map API stage name (+ matchday) to our round names"""
     if stage_name == 'GROUP_STAGE' and matchday:
@@ -122,9 +142,12 @@ def sync_matches(competition_id=2000):
                 else:
                     home_goals = score['fullTime']['home']
                     away_goals = score['fullTime']['away']
+                home_goals_ft, away_goals_ft = after_90_total(score, stage)
             else:
                 home_goals = None
                 away_goals = None
+                home_goals_ft = None
+                away_goals_ft = None
 
             if existing:
                 existing.home_team = home_team
@@ -133,6 +156,8 @@ def sync_matches(competition_id=2000):
                 existing.match_date = match_date
                 existing.home_goals = home_goals
                 existing.away_goals = away_goals
+                existing.home_goals_ft = home_goals_ft
+                existing.away_goals_ft = away_goals_ft
                 existing.finished = finished
                 existing.updated_at = datetime.utcnow()
                 updated += 1
@@ -146,6 +171,8 @@ def sync_matches(competition_id=2000):
                     match_date=match_date,
                     home_goals=home_goals,
                     away_goals=away_goals,
+                    home_goals_ft=home_goals_ft,
+                    away_goals_ft=away_goals_ft,
                     finished=finished,
                 ))
                 synced += 1
@@ -262,6 +289,7 @@ def update_match_results():
                     else:
                         match.home_goals = score['fullTime']['home']
                         match.away_goals = score['fullTime']['away']
+                    match.home_goals_ft, match.away_goals_ft = after_90_total(score, stage)
                     match.finished = True
                     match.updated_at = datetime.utcnow()
                     updated += 1

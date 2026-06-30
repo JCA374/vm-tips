@@ -151,8 +151,12 @@
 {% block content %}
 {# ── Match macro ── #}
 {% macro render_match(m, is_final=false) %}
-{% set home_win = m.finished and m.home_goals is not none and m.home_goals > m.away_goals %}
-{% set away_win = m.finished and m.away_goals is not none and m.away_goals > m.home_goals %}
+{# Winner is decided by the after-penalty/extra-time total when present,
+   otherwise by the regular-time score. #}
+{% set hcmp = m.home_goals_ft if m.home_goals_ft is not none else m.home_goals %}
+{% set acmp = m.away_goals_ft if m.away_goals_ft is not none else m.away_goals %}
+{% set home_win = m.finished and hcmp is not none and hcmp > acmp %}
+{% set away_win = m.finished and acmp is not none and acmp > hcmp %}
 <div class="b-match {{ 'finished' if m.finished else '' }} {{ 'final-game' if is_final else '' }}">
     <div class="b-date">
         <span class="local-time-short-date" data-utc="{{ m.match_date.strftime('%Y-%m-%dT%H:%M:00Z') }}">
@@ -162,12 +166,12 @@
     <div class="b-team {{ 'winner' if home_win else '' }}">
         <span class="b-flag">{{ m.home_team|flag }}</span>
         <span class="b-team-name {{ 'tbd' if m.home_team == 'TBD' else '' }}">{{ m.home_team|country }}</span>
-        <span class="b-score">{{ m.home_goals if m.finished and m.home_goals is not none else '' }}</span>
+        <span class="b-score">{{ m.home_goals if m.finished and m.home_goals is not none else '' }}{% if m.finished and m.home_goals_ft is not none %} ({{ m.home_goals_ft }}){% endif %}</span>
     </div>
     <div class="b-team {{ 'winner' if away_win else '' }}">
         <span class="b-flag">{{ m.away_team|flag }}</span>
         <span class="b-team-name {{ 'tbd' if m.away_team == 'TBD' else '' }}">{{ m.away_team|country }}</span>
-        <span class="b-score">{{ m.away_goals if m.finished and m.away_goals is not none else '' }}</span>
+        <span class="b-score">{{ m.away_goals if m.finished and m.away_goals is not none else '' }}{% if m.finished and m.away_goals_ft is not none %} ({{ m.away_goals_ft }}){% endif %}</span>
     </div>
 </div>
 {% endmacro %}

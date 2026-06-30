@@ -68,6 +68,11 @@ class Match(Base):
     # Results (null until match is played)
     home_goals = Column(Integer, nullable=True)
     away_goals = Column(Integer, nullable=True)
+    # After-penalty / extra-time total (API fullTime). Only set for knockout
+    # matches decided beyond 90 minutes; shown in parentheses in the bracket.
+    # The 1X2 outcome still uses home_goals/away_goals (regular time).
+    home_goals_ft = Column(Integer, nullable=True)
+    away_goals_ft = Column(Integer, nullable=True)
     finished = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -196,6 +201,15 @@ def init_db():
             try:
                 conn.execute(text("ALTER TABLE users ADD COLUMN last_login_at DATETIME"))
                 conn.execute(text("ALTER TABLE users ADD COLUMN last_active_at DATETIME"))
+                conn.commit()
+            except OperationalError:
+                pass  # Already added by another worker
+
+        match_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(matches)"))]
+        if 'home_goals_ft' not in match_cols:
+            try:
+                conn.execute(text("ALTER TABLE matches ADD COLUMN home_goals_ft INTEGER"))
+                conn.execute(text("ALTER TABLE matches ADD COLUMN away_goals_ft INTEGER"))
                 conn.commit()
             except OperationalError:
                 pass  # Already added by another worker
