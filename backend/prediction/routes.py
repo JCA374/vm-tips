@@ -17,6 +17,30 @@ prediction_bp = Blueprint('prediction', __name__)
 _last_refresh = {'time': None}
 REFRESH_COOLDOWN = 300  # 5 minutes
 
+# Knockout bracket display order (top-to-bottom).
+# Sorting a knockout round by external_id yields official match-number order.
+# For most rounds that already matches the bracket tree, but the 2026 round of
+# 16 joins the two sub-brackets non-sequentially: quarter-final "Match 98" is
+# fed by R16 matches 93 & 94 (not 91 & 92), so the middle two R16 pairs must be
+# swapped for each match to sit above the next-round match it actually feeds.
+# Values are index positions into the external_id-sorted round.
+BRACKET_ORDER = {
+    'round_of_16': [0, 1, 4, 5, 2, 3, 6, 7],
+}
+
+def order_bracket(round_key, matches):
+    """Return a knockout round's matches in top-to-bottom bracket order.
+
+    Matches are first sorted by external_id (official match-number order);
+    rounds listed in BRACKET_ORDER are then reordered so consecutive pairs feed
+    the correct next-round match and the left/right halves stay consistent.
+    """
+    ordered = sorted(matches, key=lambda m: m.external_id)
+    perm = BRACKET_ORDER.get(round_key)
+    if perm and len(ordered) == len(perm):
+        ordered = [ordered[i] for i in perm]
+    return ordered
+
 ROUNDS = [
     ('group_md1',   'Omgång 1'),
     ('group_md2',   'Omgång 2'),
@@ -224,9 +248,9 @@ def bracket():
     by_round = {}
     for m in matches:
         by_round.setdefault(m.round, []).append(m)
-    for rnd, rnd_matches in by_round.items():
-        # Sort by external_id to preserve bracket tree structure
-        rnd_matches.sort(key=lambda m: m.external_id)
+    for rnd in list(by_round):
+        # Order each round to match the bracket tree structure
+        by_round[rnd] = order_bracket(rnd, by_round[rnd])
 
     return render_template('prediction/bracket.html', by_round=by_round)
 
@@ -329,9 +353,9 @@ def predict():
             round_matches.sort(key=lambda m: (m.group or '', m.match_date))
         is_knockout = round_key in BRACKET_HALF
         if is_knockout:
-            # Sort by external_id to preserve bracket tree structure
+            # Order to match the bracket tree so each pair feeds the next round
             # (R32[0,1]→R16[0], R32[2,3]→R16[1], etc.)
-            round_matches.sort(key=lambda m: m.external_id)
+            round_matches = order_bracket(round_key, round_matches)
             half = BRACKET_HALF[round_key]
             # Tag each match with its bracket side
             for i, m in enumerate(round_matches):
