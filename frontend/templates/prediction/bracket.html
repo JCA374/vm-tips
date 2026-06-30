@@ -98,9 +98,21 @@
 .b-score {
     font-weight: 700;
     min-width: 12px;
-    text-align: center;
+    text-align: right;
     color: var(--accent-dark);
     font-size: 0.78rem;
+    flex-shrink: 0;
+}
+/* Penalty/extra-time total — own fixed-width column so the regular scores
+   above each other stay aligned whether or not a parenthetical follows. */
+.b-pen {
+    min-width: 24px;
+    text-align: left;
+    padding-left: 3px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
 }
 .b-team.winner {
     background: #e8f5e9;
@@ -166,12 +178,14 @@
     <div class="b-team {{ 'winner' if home_win else '' }}">
         <span class="b-flag">{{ m.home_team|flag }}</span>
         <span class="b-team-name {{ 'tbd' if m.home_team == 'TBD' else '' }}">{{ m.home_team|country }}</span>
-        <span class="b-score">{{ m.home_goals if m.finished and m.home_goals is not none else '' }}{% if m.finished and m.home_goals_ft is not none %} ({{ m.home_goals_ft }}){% endif %}</span>
+        <span class="b-score">{{ m.home_goals if m.finished and m.home_goals is not none else '' }}</span>
+        <span class="b-pen">{% if m.finished and m.home_goals_ft is not none %}({{ m.home_goals_ft }}){% endif %}</span>
     </div>
     <div class="b-team {{ 'winner' if away_win else '' }}">
         <span class="b-flag">{{ m.away_team|flag }}</span>
         <span class="b-team-name {{ 'tbd' if m.away_team == 'TBD' else '' }}">{{ m.away_team|country }}</span>
-        <span class="b-score">{{ m.away_goals if m.finished and m.away_goals is not none else '' }}{% if m.finished and m.away_goals_ft is not none %} ({{ m.away_goals_ft }}){% endif %}</span>
+        <span class="b-score">{{ m.away_goals if m.finished and m.away_goals is not none else '' }}</span>
+        <span class="b-pen">{% if m.finished and m.away_goals_ft is not none %}({{ m.away_goals_ft }}){% endif %}</span>
     </div>
 </div>
 {% endmacro %}
