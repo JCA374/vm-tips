@@ -1,6 +1,7 @@
 """Match data service - Fetch matches and results from football API"""
 import requests
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import or_, and_
 from backend import config
 from backend.models import Match, get_db, SessionLocal
 
@@ -63,6 +64,31 @@ def after_90_total(score, stage):
     if (full['home'], full['away']) == (reg['home'], reg['away']):
         return None, None
     return full['home'], full['away']
+
+
+# Our internal round names for the knockout phase (map_stage_to_round values).
+KNOCKOUT_ROUNDS = {
+    'round_of_32', 'round_of_16', 'quarter_final',
+    'semi_final', 'third_place', 'final',
+}
+
+
+def knockout_aware_score(score, stage):
+    """Return (home, away, home_ft, away_ft) for a finished match.
+
+    For knockout matches the 1X2 score uses the 90-minute (regularTime) result
+    so extra time and penalties don't change the outcome; home_ft/away_ft carry
+    the after-90 total for display. Falls back to fullTime when the API hasn't
+    populated the regularTime breakdown yet.
+    """
+    if stage in KNOCKOUT_STAGES and score.get('regularTime', {}).get('home') is not None:
+        home = score['regularTime']['home']
+        away = score['regularTime']['away']
+    else:
+        home = score['fullTime']['home']
+        away = score['fullTime']['away']
+    home_ft, away_ft = after_90_total(score, stage)
+    return home, away, home_ft, away_ft
 
 
 def map_stage_to_round(stage_name, matchday=None):
@@ -133,16 +159,8 @@ def sync_matches(competition_id=2000):
                         continue
 
             if finished:
-                score = match_data['score']
-                # Knockout matches: use regularTime (90 min) so extra time
-                # and penalties don't affect 1X2 outcome
-                if stage in KNOCKOUT_STAGES and score.get('regularTime', {}).get('home') is not None:
-                    home_goals = score['regularTime']['home']
-                    away_goals = score['regularTime']['away']
-                else:
-                    home_goals = score['fullTime']['home']
-                    away_goals = score['fullTime']['away']
-                home_goals_ft, away_goals_ft = after_90_total(score, stage)
+                home_goals, away_goals, home_goals_ft, away_goals_ft = \
+                    knockout_aware_score(match_data['score'], stage)
             else:
                 home_goals = None
                 away_goals = None
@@ -265,34 +283,55 @@ def get_finished_matches(round_name=None):
 
 
 def update_match_results():
-    """Update results for all unfinished matches"""
+    """Fetch results for unfinished matches, and re-check recently-played
+    knockout matches so a result stored before the API populated its
+    regular-time breakdown (extra-time games) self-corrects to the 90-minute
+    score.
+    """
     db = SessionLocal()
     try:
-        unfinished = db.query(Match).filter_by(finished=False).all()
+        # Re-check finished knockout matches for a short window after kickoff:
+        # the bulk feed can mark a match FINISHED with only the fullTime score,
+        # then backfill regularTime, which would otherwise be missed once the
+        # match is frozen.
+        recheck_cutoff = datetime.utcnow() - timedelta(days=3)
+        to_check = db.query(Match).filter(
+            or_(
+                Match.finished == False,
+                and_(
+                    Match.finished == True,
+                    Match.round.in_(KNOCKOUT_ROUNDS),
+                    Match.match_date >= recheck_cutoff,
+                ),
+            )
+        ).all()
         client = FootballAPIClient()
         updated = 0
 
-        for match in unfinished:
+        for match in to_check:
+            # The /matches/{id} endpoint returns the match object at the top
+            # level (no 'match' wrapper), and carries the regularTime breakdown
+            # the bulk competition feed sometimes omits.
             data = client.get_match_by_id(match.external_id)
-            if data and 'match' in data:
-                match_info = data['match']
-                status = match_info['status']
+            if not data or data.get('status') not in ('FINISHED', 'AWARDED'):
+                continue
 
-                if status in ['FINISHED', 'AWARDED']:
-                    score = match_info['score']
-                    stage = match_info.get('stage', '')
-                    # Knockout: use regularTime (90 min) so extra time/penalties
-                    # don't affect 1X2 outcome
-                    if stage in KNOCKOUT_STAGES and score.get('regularTime', {}).get('home') is not None:
-                        match.home_goals = score['regularTime']['home']
-                        match.away_goals = score['regularTime']['away']
-                    else:
-                        match.home_goals = score['fullTime']['home']
-                        match.away_goals = score['fullTime']['away']
-                    match.home_goals_ft, match.away_goals_ft = after_90_total(score, stage)
-                    match.finished = True
-                    match.updated_at = datetime.utcnow()
-                    updated += 1
+            stage = data.get('stage', '')
+            home_goals, away_goals, home_goals_ft, away_goals_ft = \
+                knockout_aware_score(data['score'], stage)
+
+            if (match.home_goals, match.away_goals,
+                    match.home_goals_ft, match.away_goals_ft, match.finished) == \
+                    (home_goals, away_goals, home_goals_ft, away_goals_ft, True):
+                continue
+
+            match.home_goals = home_goals
+            match.away_goals = away_goals
+            match.home_goals_ft = home_goals_ft
+            match.away_goals_ft = away_goals_ft
+            match.finished = True
+            match.updated_at = datetime.utcnow()
+            updated += 1
 
         db.commit()
         return {'status': 'success', 'updated': updated}
