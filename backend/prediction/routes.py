@@ -7,7 +7,7 @@ from backend.prediction.service import (
     get_all_predictions_for_round, check_deadline_passed,
     calculate_all_scores, effective_deadlines, match_deadline_passed,
     r32_early_date, SPLIT_ROUND, REST_KEY,
-    submit_final_goals, get_final_test_data,
+    submit_goals, score_final_goals, GOAL_TEST_ROUNDS,
 )
 from backend.match_data.service import sync_matches
 from backend.models import SessionLocal, RoundDeadline, Match, Prediction, User
@@ -50,8 +50,8 @@ ROUNDS = [
     ('round_of_16', 'Åttondelsfinal'),
     ('quarter_final', 'Kvartsfinal'),
     ('semi_final',  'Semifinal'),
-    ('third_place', 'Bronsmatch'),
     ('final',       'Final'),
+    ('third_place', 'Bronsmatch'),
 ]
 
 
@@ -285,12 +285,20 @@ def predict():
         round_matches = [m for m in all_matches if m.round == active_round] if active_round else all_matches
 
         for match in round_matches:
-            outcome_key = f'outcome_{match.id}'
-            outcome = request.form.get(outcome_key)
-            if outcome in ('1', 'X', '2'):
-                result = submit_prediction(user_id, match.id, outcome=outcome)
-                if result['status'] == 'error':
-                    flash(f"{match.home_team} vs {match.away_team}: {result['message']}", 'error')
+            if match.round in GOAL_TEST_ROUNDS:
+                # Final & third place: predict exact goals (1p home, 1p away, 1p 1X2)
+                home = request.form.get(f'home_goals_{match.id}')
+                away = request.form.get(f'away_goals_{match.id}')
+                if home not in (None, '') and away not in (None, ''):
+                    result = submit_goals(user_id, match.id, home, away)
+                    if result['status'] == 'error':
+                        flash(f"{match.home_team} vs {match.away_team}: {result['message']}", 'error')
+            else:
+                outcome = request.form.get(f'outcome_{match.id}')
+                if outcome in ('1', 'X', '2'):
+                    result = submit_prediction(user_id, match.id, outcome=outcome)
+                    if result['status'] == 'error':
+                        flash(f"{match.home_team} vs {match.away_team}: {result['message']}", 'error')
 
         flash('Predictions saved!')
 
@@ -311,7 +319,10 @@ def predict():
             missing = []
             for m in round_matches:
                 pred = pred_map.get(m.id)
-                if not pred or not pred.predicted_outcome:
+                if m.round in GOAL_TEST_ROUNDS:
+                    if not pred or pred.predicted_home_goals is None or pred.predicted_away_goals is None:
+                        missing.append(m)
+                elif not pred or not pred.predicted_outcome:
                     missing.append(m)
             if missing:
                 if len(missing) <= 3:
@@ -389,8 +400,18 @@ def predict():
             'deadline': deadline,
             'locked': round_locked,
             'is_knockout': is_knockout,
+            'is_goal': round_key in GOAL_TEST_ROUNDS,
             'splits': splits,
         })
+
+    # Goal-based points (final & third place) for this user's finished predictions
+    goal_points = {}
+    for m in all_matches:
+        if m.round in GOAL_TEST_ROUNDS and m.finished:
+            p = predictions_dict.get(m.id)
+            if p and p.predicted_home_goals is not None and p.predicted_away_goals is not None:
+                hp, ap, op = score_final_goals(m, p.predicted_home_goals, p.predicted_away_goals)
+                goal_points[m.id] = {'home': hp, 'away': ap, 'outcome': op, 'total': hp + ap + op}
 
     # Default to the round with the closest upcoming deadline
     default_tab = None
@@ -405,40 +426,8 @@ def predict():
     return render_template('prediction/predict.html',
                            rounds_data=rounds_data,
                            predictions=predictions_dict,
+                           goal_points=goal_points,
                            default_tab=default_tab)
-
-
-@prediction_bp.route('/test-final', methods=['GET', 'POST'])
-def test_final():
-    """Test page: bet on the final by exact goals.
-
-    Experimental scoring — 1 point for the correct number of home goals, 1 for the
-    correct number of away goals, and 1 for the resulting 1X2 (max 3). Isolated
-    from the live 1X2 competition and its leaderboard.
-    """
-    if not session.get('user_id'):
-        flash('Please login first.')
-        return redirect(url_for('auth.login'))
-
-    if request.method == 'POST':
-        result = submit_final_goals(
-            session['user_id'],
-            request.form.get('home_goals'),
-            request.form.get('away_goals'),
-        )
-        flash(result['message'], 'error' if result['status'] == 'error' else 'success')
-        return redirect(url_for('prediction.test_final'))
-
-    calculate_all_scores()
-    data = get_final_test_data()
-
-    # This user's current goal prediction (to prefill the form)
-    my_row = next((r for r in data['rows'] if r['user'].id == session['user_id']), None)
-
-    return render_template('prediction/test_final.html',
-                           match=data['match'],
-                           rows=data['rows'],
-                           my_row=my_row)
 
 
 @prediction_bp.route('/results')

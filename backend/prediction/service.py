@@ -133,19 +133,15 @@ def admin_set_prediction(user_id, match_id, outcome):
         db.close()
 
 
-# ── Test page: goal-based betting on the final ─────────────────────────────────
-# Experimental scoring for the final only: 1 point for the correct number of home
-# goals, 1 point for the correct number of away goals, and 1 point for the
+# ── Test page: goal-based betting on the final & third-place match ─────────────
+# Experimental scoring for these two matches only: 1 point for the correct number
+# of home goals, 1 point for the correct number of away goals, and 1 point for the
 # resulting 1X2 outcome (max 3). Goals are stored in the legacy
 # predicted_home_goals / predicted_away_goals columns so this stays fully isolated
 # from the live 1X2 competition (which only ever reads predicted_outcome/points).
 
-def get_final_match(db):
-    """The final match, or None if it isn't in the schedule yet."""
-    return (db.query(Match)
-            .filter(Match.round == 'final')
-            .order_by(Match.match_date)
-            .first())
+# Rounds that use goal-based betting (final + third-place match).
+GOAL_TEST_ROUNDS = ['final', 'third_place']
 
 
 def _outcome(home, away):
@@ -154,7 +150,7 @@ def _outcome(home, away):
 
 
 def score_final_goals(match, pred_home, pred_away):
-    """(home_pt, away_pt, outcome_pt) for a goals prediction vs a finished final."""
+    """(home_pt, away_pt, outcome_pt) for a goals prediction vs a finished match."""
     if not match.finished or pred_home is None or pred_away is None:
         return (0, 0, 0)
     home_pt = 1 if pred_home == match.home_goals else 0
@@ -163,15 +159,18 @@ def score_final_goals(match, pred_home, pred_away):
     return (home_pt, away_pt, outcome_pt)
 
 
-def submit_final_goals(user_id, home_goals, away_goals):
-    """Store/update a goals prediction for the final (test page). No deadline check."""
+def submit_goals(user_id, match_id, home_goals, away_goals):
+    """Store/update a goals prediction for a goal-betting match (final/third place).
+    Respects the round deadline, like the 1X2 predictions."""
     db = SessionLocal()
     try:
-        match = get_final_match(db)
-        if not match:
-            return {'status': 'error', 'message': 'No final scheduled yet'}
+        match = db.query(Match).filter_by(id=match_id).first()
+        if not match or match.round not in GOAL_TEST_ROUNDS:
+            return {'status': 'error', 'message': 'Match not found'}
         if match.finished:
-            return {'status': 'error', 'message': 'Final already finished'}
+            return {'status': 'error', 'message': 'Match already finished'}
+        if match_deadline_passed(match, effective_deadlines(db), r32_early_date(db)):
+            return {'status': 'error', 'message': 'Deadline has passed'}
         try:
             home_goals = int(home_goals)
             away_goals = int(away_goals)
@@ -195,39 +194,6 @@ def submit_final_goals(user_id, home_goals, away_goals):
     except Exception as e:
         db.rollback()
         return {'status': 'error', 'message': str(e)}
-    finally:
-        db.close()
-
-
-def get_final_test_data():
-    """Final match + every user's goal prediction with computed test points."""
-    from sqlalchemy.orm import joinedload
-    db = SessionLocal()
-    try:
-        match = get_final_match(db)
-        if not match:
-            return {'match': None, 'rows': []}
-        preds = (db.query(Prediction)
-                 .options(joinedload(Prediction.user))
-                 .filter(Prediction.match_id == match.id)
-                 .all())
-        rows = []
-        for p in preds:
-            if p.predicted_home_goals is None or p.predicted_away_goals is None:
-                continue
-            home_pt, away_pt, outcome_pt = score_final_goals(
-                match, p.predicted_home_goals, p.predicted_away_goals)
-            rows.append({
-                'user': p.user,
-                'home': p.predicted_home_goals,
-                'away': p.predicted_away_goals,
-                'home_pt': home_pt,
-                'away_pt': away_pt,
-                'outcome_pt': outcome_pt,
-                'total': home_pt + away_pt + outcome_pt,
-            })
-        rows.sort(key=lambda r: (-r['total'], r['user'].name))
-        return {'match': match, 'rows': rows}
     finally:
         db.close()
 

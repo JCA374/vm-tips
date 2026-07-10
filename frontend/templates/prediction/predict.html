@@ -188,6 +188,12 @@
     {% for round in rounds_data %}
     <div id="tab-{{ round.key }}" class="tab-panel {% if round.key == default_tab or (not default_tab and loop.first) %}active{% endif %}">
 
+        {% if round.is_goal %}
+        <p style="font-size:13px; color:#555; margin:0 0 12px;">
+            Tippa antal mål efter full tid (90 min). Poäng: 1p rätt hemmamål, 1p rätt bortamål, 1p rätt utgång (max 3p).
+        </p>
+        {% endif %}
+
         {# A round normally has one deadline. round_of_32 has two: one for the
            earliest date ("Första dagen") and one for the rest ("Övriga matcher"). #}
         {% set sections = round.splits if round.splits else
@@ -249,6 +255,18 @@
                     {% if fc %}<img src="https://flagcdn.com/32x24/{{ fc }}.png" alt="{{ match.home_team | country }}">{% endif %}
                 </span>
 
+                {% if round.is_goal %}
+                {# ── Exact-goal inputs (final & third place) ── #}
+                <input type="number" class="score-input" name="home_goals_{{ match.id }}"
+                       min="0" max="99" inputmode="numeric"
+                       value="{{ pred.predicted_home_goals if pred and pred.predicted_home_goals is not none else '' }}"
+                       {% if disabled %}disabled{% endif %}>
+                <span class="separator">–</span>
+                <input type="number" class="score-input" name="away_goals_{{ match.id }}"
+                       min="0" max="99" inputmode="numeric"
+                       value="{{ pred.predicted_away_goals if pred and pred.predicted_away_goals is not none else '' }}"
+                       {% if disabled %}disabled{% endif %}>
+                {% else %}
                 {# ── 1 X 2 radio buttons ── #}
                 {% set saved = pred.predicted_outcome if pred else '' %}
                 <div class="ox2-group">
@@ -261,6 +279,7 @@
                     </label>
                     {% endfor %}
                 </div>
+                {% endif %}
 
                 <span class="team-name {% if is_tbd %}tbd{% endif %}">
                     {% set fc = flag_codes.get(match.away_team, '') %}
@@ -271,13 +290,20 @@
                 {% if match.finished %}
                 <span class="match-status result">
                     {{ match.home_goals }}–{{ match.away_goals }}
-                    {% if pred and pred.points is not none %}
+                    {% if round.is_goal %}
+                        {% set gp = goal_points.get(match.id) %}
+                        {% if gp %}
+                        <span class="{% if gp.total > 0 %}points-correct{% endif %}">({{ gp.total }}p)</span>
+                        {% endif %}
+                    {% elif pred and pred.points is not none %}
                     <span class="{% if pred.points > 0 %}points-correct{% endif %}">({{ pred.points }}p)</span>
                     {% endif %}
                 </span>
                 {% elif is_tbd %}
                 <span class="match-status tbd">TBD</span>
-                {% elif pred and pred.predicted_outcome %}
+                {% elif round.is_goal and pred and pred.predicted_home_goals is not none %}
+                <span class="match-status saved">{{ t.predict_saved }}</span>
+                {% elif not round.is_goal and pred and pred.predicted_outcome %}
                 <span class="match-status saved" data-match="{{ match.id }}" data-saved="{{ pred.predicted_outcome }}">{{ t.predict_saved }}</span>
                 {% else %}
                 <span class="match-status" data-match="{{ match.id }}"></span>
