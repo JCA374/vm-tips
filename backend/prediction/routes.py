@@ -7,6 +7,7 @@ from backend.prediction.service import (
     get_all_predictions_for_round, check_deadline_passed,
     calculate_all_scores, effective_deadlines, match_deadline_passed,
     r32_early_date, SPLIT_ROUND, REST_KEY,
+    submit_final_goals, get_final_test_data,
 )
 from backend.match_data.service import sync_matches
 from backend.models import SessionLocal, RoundDeadline, Match, Prediction, User
@@ -405,6 +406,39 @@ def predict():
                            rounds_data=rounds_data,
                            predictions=predictions_dict,
                            default_tab=default_tab)
+
+
+@prediction_bp.route('/test-final', methods=['GET', 'POST'])
+def test_final():
+    """Test page: bet on the final by exact goals.
+
+    Experimental scoring — 1 point for the correct number of home goals, 1 for the
+    correct number of away goals, and 1 for the resulting 1X2 (max 3). Isolated
+    from the live 1X2 competition and its leaderboard.
+    """
+    if not session.get('user_id'):
+        flash('Please login first.')
+        return redirect(url_for('auth.login'))
+
+    if request.method == 'POST':
+        result = submit_final_goals(
+            session['user_id'],
+            request.form.get('home_goals'),
+            request.form.get('away_goals'),
+        )
+        flash(result['message'], 'error' if result['status'] == 'error' else 'success')
+        return redirect(url_for('prediction.test_final'))
+
+    calculate_all_scores()
+    data = get_final_test_data()
+
+    # This user's current goal prediction (to prefill the form)
+    my_row = next((r for r in data['rows'] if r['user'].id == session['user_id']), None)
+
+    return render_template('prediction/test_final.html',
+                           match=data['match'],
+                           rows=data['rows'],
+                           my_row=my_row)
 
 
 @prediction_bp.route('/results')

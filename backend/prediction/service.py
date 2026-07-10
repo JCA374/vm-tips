@@ -133,6 +133,105 @@ def admin_set_prediction(user_id, match_id, outcome):
         db.close()
 
 
+# ── Test page: goal-based betting on the final ─────────────────────────────────
+# Experimental scoring for the final only: 1 point for the correct number of home
+# goals, 1 point for the correct number of away goals, and 1 point for the
+# resulting 1X2 outcome (max 3). Goals are stored in the legacy
+# predicted_home_goals / predicted_away_goals columns so this stays fully isolated
+# from the live 1X2 competition (which only ever reads predicted_outcome/points).
+
+def get_final_match(db):
+    """The final match, or None if it isn't in the schedule yet."""
+    return (db.query(Match)
+            .filter(Match.round == 'final')
+            .order_by(Match.match_date)
+            .first())
+
+
+def _outcome(home, away):
+    """1X2 label from a goal pair."""
+    return 'X' if home == away else ('1' if home > away else '2')
+
+
+def score_final_goals(match, pred_home, pred_away):
+    """(home_pt, away_pt, outcome_pt) for a goals prediction vs a finished final."""
+    if not match.finished or pred_home is None or pred_away is None:
+        return (0, 0, 0)
+    home_pt = 1 if pred_home == match.home_goals else 0
+    away_pt = 1 if pred_away == match.away_goals else 0
+    outcome_pt = 1 if _outcome(pred_home, pred_away) == _outcome(match.home_goals, match.away_goals) else 0
+    return (home_pt, away_pt, outcome_pt)
+
+
+def submit_final_goals(user_id, home_goals, away_goals):
+    """Store/update a goals prediction for the final (test page). No deadline check."""
+    db = SessionLocal()
+    try:
+        match = get_final_match(db)
+        if not match:
+            return {'status': 'error', 'message': 'No final scheduled yet'}
+        if match.finished:
+            return {'status': 'error', 'message': 'Final already finished'}
+        try:
+            home_goals = int(home_goals)
+            away_goals = int(away_goals)
+        except (TypeError, ValueError):
+            return {'status': 'error', 'message': 'Please enter whole numbers'}
+        if not (0 <= home_goals <= 99 and 0 <= away_goals <= 99):
+            return {'status': 'error', 'message': 'Goals must be between 0 and 99'}
+
+        pred = db.query(Prediction).filter_by(user_id=user_id, match_id=match.id).first()
+        if pred:
+            pred.predicted_home_goals = home_goals
+            pred.predicted_away_goals = away_goals
+            pred.updated_at = datetime.utcnow()
+        else:
+            db.add(Prediction(
+                user_id=user_id, match_id=match.id,
+                predicted_home_goals=home_goals, predicted_away_goals=away_goals,
+            ))
+        db.commit()
+        return {'status': 'success', 'message': 'Prediction saved'}
+    except Exception as e:
+        db.rollback()
+        return {'status': 'error', 'message': str(e)}
+    finally:
+        db.close()
+
+
+def get_final_test_data():
+    """Final match + every user's goal prediction with computed test points."""
+    from sqlalchemy.orm import joinedload
+    db = SessionLocal()
+    try:
+        match = get_final_match(db)
+        if not match:
+            return {'match': None, 'rows': []}
+        preds = (db.query(Prediction)
+                 .options(joinedload(Prediction.user))
+                 .filter(Prediction.match_id == match.id)
+                 .all())
+        rows = []
+        for p in preds:
+            if p.predicted_home_goals is None or p.predicted_away_goals is None:
+                continue
+            home_pt, away_pt, outcome_pt = score_final_goals(
+                match, p.predicted_home_goals, p.predicted_away_goals)
+            rows.append({
+                'user': p.user,
+                'home': p.predicted_home_goals,
+                'away': p.predicted_away_goals,
+                'home_pt': home_pt,
+                'away_pt': away_pt,
+                'outcome_pt': outcome_pt,
+                'total': home_pt + away_pt + outcome_pt,
+            })
+        rows.sort(key=lambda r: (-r['total'], r['user'].name))
+        return {'match': match, 'rows': rows}
+    finally:
+        db.close()
+
+
 def get_user_predictions(user_id, round_name=None):
     """Get all predictions for a user, optionally filtered by round"""
     db = SessionLocal()
