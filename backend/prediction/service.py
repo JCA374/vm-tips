@@ -133,15 +133,15 @@ def admin_set_prediction(user_id, match_id, outcome):
         db.close()
 
 
-# ── Test page: goal-based betting on the final & third-place match ─────────────
-# Experimental scoring for these two matches only: 1 point for the correct number
+# ── Test page: goal-based betting on the semi-finals, final & third-place match ─
+# Experimental scoring for these matches only: 1 point for the correct number
 # of home goals, 1 point for the correct number of away goals, and 1 point for the
 # resulting 1X2 outcome (max 3). Goals are stored in the legacy
 # predicted_home_goals / predicted_away_goals columns so this stays fully isolated
 # from the live 1X2 competition (which only ever reads predicted_outcome/points).
 
-# Rounds that use goal-based betting (final + third-place match).
-GOAL_TEST_ROUNDS = ['final', 'third_place']
+# Rounds that use goal-based betting (semi-finals + final + third-place match).
+GOAL_TEST_ROUNDS = ['semi_final', 'final', 'third_place']
 
 
 def _outcome(home, away):
