@@ -310,14 +310,23 @@
                 {% set m = md.match %}
                 {% set locked = md.round_locked %}
                 {% set pred = md.predictions.get(user.id) %}
+                {% if md.is_goal %}
+                    {% set has_tip = pred and pred.predicted_home_goals is not none and pred.predicted_away_goals is not none %}
+                    {% set tipval = (pred.predicted_home_goals ~ '–' ~ pred.predicted_away_goals) if has_tip else '' %}
+                    {% set is_correct = goal_pts.get(m.id, {}).get(user.id, 0) > 0 %}
+                {% else %}
+                    {% set has_tip = pred and pred.predicted_outcome %}
+                    {% set tipval = pred.predicted_outcome if has_tip else '' %}
+                    {% set is_correct = pred and pred.points and pred.points > 0 %}
+                {% endif %}
                 <td>
-                    {% if pred and pred.predicted_outcome %}
+                    {% if has_tip %}
                         {% if m.finished %}
-                            <span class="tip {% if pred.points and pred.points > 0 %}tip-correct{% else %}tip-wrong{% endif %}">{{ pred.predicted_outcome }}</span>
+                            <span class="tip {% if is_correct %}tip-correct{% else %}tip-wrong{% endif %}">{{ tipval }}</span>
                         {% elif locked %}
-                            <span class="tip tip-open">{{ pred.predicted_outcome }}</span>
+                            <span class="tip tip-open">{{ tipval }}</span>
                         {% elif user.id == session.get('user_id') %}
-                            <span class="tip tip-open">{{ pred.predicted_outcome }}</span>
+                            <span class="tip tip-open">{{ tipval }}</span>
                         {% else %}
                             <span class="tip-hidden">-</span>
                         {% endif %}

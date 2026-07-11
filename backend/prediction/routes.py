@@ -18,6 +18,16 @@ prediction_bp = Blueprint('prediction', __name__)
 _last_refresh = {'time': None}
 REFRESH_COOLDOWN = 300  # 5 minutes
 
+
+def _tip_signature(md, pred):
+    """A user's tip for one match, for grouping identical tip patterns.
+    Goal-betting rounds compare exact goals; others compare the 1X2 pick."""
+    if not pred:
+        return None
+    if md['is_goal']:
+        return (pred.predicted_home_goals, pred.predicted_away_goals)
+    return pred.predicted_outcome
+
 # Knockout bracket display order (top-to-bottom).
 # Sorting a knockout round by external_id yields official match-number order.
 # For most rounds that already matches the bracket tree, but the 2026 round of
@@ -142,14 +152,32 @@ def today():
             'match': match,
             'predictions': preds_for_match,
             'round_locked': True,  # all shown matches are past deadline
+            'is_goal': match.round in GOAL_TEST_ROUNDS,
         })
+
+    # Goal-betting rounds (semi-finals/final/bronze) are scored on the fly, not
+    # from pred.points: {match_id: {user_id: total}} for correct home/away/1X2.
+    goal_pts = {}
+    for md in matches_data:
+        if not md['is_goal']:
+            continue
+        m = md['match']
+        pm = {}
+        for uid, pred in md['predictions'].items():
+            if pred.predicted_home_goals is not None and pred.predicted_away_goals is not None:
+                hp, ap, op = score_final_goals(m, pred.predicted_home_goals, pred.predicted_away_goals)
+                pm[uid] = hp + ap + op
+        goal_pts[m.id] = pm
 
     # Sum points per user for today's finished matches
     day_points = {}
     for md in matches_data:
-        if md['match'].finished:
-            for uid, pred in md['predictions'].items():
-                day_points[uid] = day_points.get(uid, 0) + (pred.points or 0)
+        m = md['match']
+        if not m.finished:
+            continue
+        for uid, pred in md['predictions'].items():
+            pts = goal_pts[m.id].get(uid, 0) if md['is_goal'] else (pred.points or 0)
+            day_points[uid] = day_points.get(uid, 0) + pts
 
     # Group users by identical tip pattern for color-coding
     tip_groups = {}  # user_id -> group index (0-based), only for groups with 2+ members
@@ -157,8 +185,7 @@ def today():
         sig_map = {}  # signature -> [user_ids]
         for user in users:
             sig = tuple(
-                (md['predictions'].get(user.id).predicted_outcome
-                 if md['predictions'].get(user.id) else None)
+                _tip_signature(md, md['predictions'].get(user.id))
                 for md in matches_data
             )
             sig_map.setdefault(sig, []).append(user.id)
@@ -180,6 +207,7 @@ def today():
                            users=users,
                            venue_date=venue_today,
                            day_points=day_points,
+                           goal_pts=goal_pts,
                            tip_groups=tip_groups,
                            prev_day=prev_day,
                            next_day=next_day,

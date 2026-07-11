@@ -602,3 +602,70 @@ def test_results_visible_after_deadline(page, register_and_login):
 
     response = page.goto(f'{BASE_URL}/results')
     assert response.status == 200
+
+
+# ── Today page (Idag): goal-betting display ───────────────────────────────────
+
+def test_today_page_shows_goal_bets_and_points():
+    """Idag shows exact-goal tips and goal-scored points for goal-betting rounds."""
+    import re
+    from conftest import _flask_app
+    from backend.models import (SessionLocal, Match, Prediction, User,
+                                RoundDeadline)
+
+    db = SessionLocal()
+    # A finished semi-final on 2026-07-14 (UTC 20:00 -> venue UTC-5 = 15:00 same day),
+    # with its deadline already in the past so the match is revealed.
+    match = Match(
+        external_id=778001, round='semi_final',
+        home_team='France', away_team='Spain',
+        match_date=datetime(2026, 7, 14, 20, 0),
+        finished=True, home_goals=2, away_goals=1,
+    )
+    db.add(match)
+    past = datetime.utcnow() - timedelta(days=1)
+    dl = db.query(RoundDeadline).filter_by(round='semi_final').first()
+    if dl:
+        dl.deadline = past
+    else:
+        db.add(RoundDeadline(round='semi_final', deadline=past))
+    db.commit()
+    mid = match.id
+
+    ua = User(email='today_goal_a@test.com', name='TodayGoalA')
+    ub = User(email='today_goal_b@test.com', name='TodayGoalB')
+    db.add_all([ua, ub])
+    db.commit()
+    # A nails 2-1 (3 pts: home+away+outcome); B bets 1-0 -> only the home-win outcome (1 pt).
+    db.add(Prediction(user_id=ua.id, match_id=mid, predicted_home_goals=2, predicted_away_goals=1))
+    db.add(Prediction(user_id=ub.id, match_id=mid, predicted_home_goals=1, predicted_away_goals=0))
+    db.commit()
+    uaid, ubid = ua.id, ub.id
+    db.close()
+
+    try:
+        client = _flask_app.test_client()
+        with client.session_transaction() as s:
+            s['user_id'] = uaid
+            s['user_name'] = 'TodayGoalA'
+        resp = client.get('/today?date=2026-07-14')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+
+        # Both users' exact-goal tips render (en-dash separated), not blank cells.
+        assert '2–1' in html   # A's tip (also the match score)
+        assert '1–0' in html   # B's tip — only present as a goal tip
+
+        # Viewer A's row (class="me") shows 3 points, scored from goals not 1X2.
+        me_row = re.search(r'<tr class="me">(.*?)</tr>', html, re.S)
+        assert me_row, 'viewer row not found'
+        assert '2–1' in me_row.group(1)
+        assert re.search(r'pts pts-col">\s*3\s*<', me_row.group(1)), \
+            'expected 3 goal-points for the exact-score bet'
+    finally:
+        db = SessionLocal()
+        db.query(Prediction).filter(Prediction.match_id == mid).delete()
+        db.query(Match).filter(Match.id == mid).delete()
+        db.query(User).filter(User.id.in_([uaid, ubid])).delete()
+        db.commit()
+        db.close()
