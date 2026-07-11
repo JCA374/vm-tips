@@ -420,6 +420,97 @@ def test_1x2_scoring_third_place():
     assert pred.calculate_points() == 1
 
 
+# ── Goal-based scoring (semi-finals, final, third place) ──────────────────────
+# These rounds are bet by exact goals: 1p for correct home goals, 1p for correct
+# away goals, 1p for the resulting 1X2 outcome (max 3), scored by score_final_goals.
+
+def test_goal_rounds_are_semifinal_final_and_third_place():
+    """Goal-based betting applies to the semi-finals, final, and bronze match."""
+    from backend.prediction.service import GOAL_TEST_ROUNDS
+    assert set(GOAL_TEST_ROUNDS) == {'semi_final', 'final', 'third_place'}
+
+
+def test_goal_scoring_perfect():
+    """Exact goals + right outcome scores the full 3 points."""
+    from backend.prediction.service import score_final_goals
+    from backend.models import Match
+    match = Match(round='semi_final', home_goals=2, away_goals=1, finished=True)
+    assert score_final_goals(match, 2, 1) == (1, 1, 1)
+
+
+def test_goal_scoring_home_goals_only():
+    """Correct home goals but wrong away goals and wrong outcome scores 1 (home)."""
+    from backend.prediction.service import score_final_goals
+    from backend.models import Match
+    # Real 2–1 (outcome '1'); predict 2–3 (outcome '2'): home matches, rest wrong.
+    match = Match(round='semi_final', home_goals=2, away_goals=1, finished=True)
+    assert score_final_goals(match, 2, 3) == (1, 0, 0)
+
+
+def test_goal_scoring_away_goals_only():
+    """Correct away goals but wrong home goals and wrong outcome scores 1 (away)."""
+    from backend.prediction.service import score_final_goals
+    from backend.models import Match
+    # Real 2–1 (outcome '1'); predict 0–1 (outcome '2'): away matches, rest wrong.
+    match = Match(round='semi_final', home_goals=2, away_goals=1, finished=True)
+    assert score_final_goals(match, 0, 1) == (0, 1, 0)
+
+
+def test_goal_scoring_outcome_only():
+    """Wrong exact score but right winner scores 1 (outcome)."""
+    from backend.prediction.service import score_final_goals
+    from backend.models import Match
+    # Real 2–1 (home win); predict 1–0 (also a home win): only the outcome matches.
+    match = Match(round='semi_final', home_goals=2, away_goals=1, finished=True)
+    assert score_final_goals(match, 1, 0) == (0, 0, 1)
+
+
+def test_goal_scoring_correct_draw():
+    """Predicting the right draw scores the outcome point (and any exact goals)."""
+    from backend.prediction.service import score_final_goals
+    from backend.models import Match
+    match = Match(round='final', home_goals=1, away_goals=1, finished=True)
+    # Exact draw: all three points.
+    assert score_final_goals(match, 1, 1) == (1, 1, 1)
+    # Different draw score: only the outcome point.
+    assert score_final_goals(match, 2, 2) == (0, 0, 1)
+
+
+def test_goal_scoring_all_wrong():
+    """Wrong goals and wrong winner scores nothing."""
+    from backend.prediction.service import score_final_goals
+    from backend.models import Match
+    # Real 2–1 (home win); predict 0–2 (away win): nothing matches.
+    match = Match(round='third_place', home_goals=2, away_goals=1, finished=True)
+    assert score_final_goals(match, 0, 2) == (0, 0, 0)
+
+
+def test_goal_scoring_unfinished_match_scores_zero():
+    """No points are awarded before the match is finished."""
+    from backend.prediction.service import score_final_goals
+    from backend.models import Match
+    match = Match(round='semi_final', home_goals=None, away_goals=None, finished=False)
+    assert score_final_goals(match, 2, 1) == (0, 0, 0)
+
+
+def test_goal_scoring_missing_prediction_scores_zero():
+    """A missing goals prediction scores nothing rather than erroring."""
+    from backend.prediction.service import score_final_goals
+    from backend.models import Match
+    match = Match(round='semi_final', home_goals=2, away_goals=1, finished=True)
+    assert score_final_goals(match, None, None) == (0, 0, 0)
+
+
+def test_goal_scoring_isolated_from_1x2_points():
+    """Goal predictions never populate the legacy 1X2 points column."""
+    from backend.models import Prediction, Match
+    # A goals-only prediction has no predicted_outcome, so calculate_points is 0.
+    pred = Prediction(predicted_home_goals=2, predicted_away_goals=1)
+    match = Match(round='semi_final', home_goals=2, away_goals=1, finished=True)
+    pred.match = match
+    assert pred.calculate_points() == 0
+
+
 # ── Stage mapping ────────────────────────────────────────────────────────────
 
 def test_map_stage_to_round_group_stages():
