@@ -80,6 +80,9 @@
 }
 .score-input:disabled { background: #f8f8f8; color: #aaa; }
 .separator { font-weight: bold; color: #999; font-size: 1.1em; }
+/* Group the goal inputs so the middle sits in one centered cell,
+   matching the .ox2-group footprint used by the 1X2 rounds. */
+.goal-group { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .match-status {
     font-size: 12px;
     white-space: nowrap;
@@ -256,16 +259,18 @@
                 </span>
 
                 {% if round.is_goal %}
-                {# ── Exact-goal inputs (final & third place) ── #}
-                <input type="number" class="score-input" name="home_goals_{{ match.id }}"
-                       min="0" max="99" inputmode="numeric"
-                       value="{{ pred.predicted_home_goals if pred and pred.predicted_home_goals is not none else '' }}"
-                       {% if disabled %}disabled{% endif %}>
-                <span class="separator">–</span>
-                <input type="number" class="score-input" name="away_goals_{{ match.id }}"
-                       min="0" max="99" inputmode="numeric"
-                       value="{{ pred.predicted_away_goals if pred and pred.predicted_away_goals is not none else '' }}"
-                       {% if disabled %}disabled{% endif %}>
+                {# ── Exact-goal inputs (semi-finals, final & third place) ── #}
+                <div class="goal-group">
+                    <input type="number" class="score-input" name="home_goals_{{ match.id }}"
+                           min="0" max="99" inputmode="numeric"
+                           value="{{ pred.predicted_home_goals if pred and pred.predicted_home_goals is not none else '' }}"
+                           {% if disabled %}disabled{% endif %}>
+                    <span class="separator">–</span>
+                    <input type="number" class="score-input" name="away_goals_{{ match.id }}"
+                           min="0" max="99" inputmode="numeric"
+                           value="{{ pred.predicted_away_goals if pred and pred.predicted_away_goals is not none else '' }}"
+                           {% if disabled %}disabled{% endif %}>
+                </div>
                 {% else %}
                 {# ── 1 X 2 radio buttons ── #}
                 {% set saved = pred.predicted_outcome if pred else '' %}
